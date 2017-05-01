@@ -9,8 +9,7 @@ class ApiController < ApplicationController
         render plain: content
       end
     else
-      entries = client.list_folder(file_path).entries
-      render json: entries.map(&:to_hash)
+      render json: entries(client, file_path)
     end
   end
 
@@ -26,5 +25,13 @@ class ApiController < ApplicationController
     end
 
     path
+  end
+
+  def entries(client, file_path)
+    client
+      .list_folder(file_path)
+      .entries
+      .map(&:to_hash)
+      .select { |e| e[".tag"] == "folder" || e["name"] =~ /\.org$/ }
   end
 end
