@@ -2,12 +2,12 @@ module Main exposing (..)
 
 import Api exposing (Path, Entry(..))
 import Html as H exposing (Html)
+import Html.Attributes as HA
 import Html.Events as HE
 
 
 type Model
-    = FetchingDirectory Path
-    | FetchingFile Path
+    = Fetching Path
     | DisplayingDirectory Path (List Entry)
     | DisplayingFile String Path
 
@@ -33,7 +33,7 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    ( FetchingDirectory "/", listDirectory "/" )
+    ( Fetching "/", listDirectory "/" )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -52,10 +52,10 @@ update msg model =
             ( DisplayingFile path content, Cmd.none )
 
         DirectoryClicked path ->
-            ( FetchingDirectory path, listDirectory path )
+            ( Fetching path, listDirectory path )
 
         FileClicked path ->
-            ( FetchingFile path, fetchFile path )
+            ( Fetching path, fetchFile path )
 
 
 listDirectory : String -> Cmd Msg
@@ -71,36 +71,62 @@ fetchFile path =
 view : Model -> Html Msg
 view model =
     case model of
-        FetchingDirectory _ ->
-            H.p [] [ H.text "..." ]
-
-        FetchingFile _ ->
-            H.p [] [ H.text "..." ]
+        Fetching path ->
+            layout path
+                [ H.div
+                    [ HA.class "progress" ]
+                    [ H.div [ HA.class "indeterminate" ] [] ]
+                ]
 
         DisplayingFile path content ->
-            H.pre
-                []
-                [ H.text content ]
+            layout path
+                [ H.pre [] [ H.text content ] ]
 
         DisplayingDirectory path entries ->
-            H.div
-                []
-                [ H.h1 [] [ H.text path ]
-                , H.ul
-                    []
-                    (List.map viewEntry entries)
+            layout path
+                [ viewDirectory entries ]
+
+
+layout : Path -> List (Html Msg) -> Html Msg
+layout path body =
+    let
+        nav =
+            H.nav
+                [ HA.class "blue-grey" ]
+                [ H.div
+                    [ HA.class "nav-wrapper" ]
+                    [ H.span [] [ H.text path ]
+                    ]
                 ]
+    in
+        H.div [] (nav :: body)
+
+
+viewDirectory : List Entry -> Html Msg
+viewDirectory entries =
+    H.div
+        [ HA.id "directory-entries"
+        , HA.class "collection"
+        ]
+        (List.map viewEntry entries)
 
 
 viewEntry : Entry -> Html Msg
 viewEntry entry =
-    case entry of
-        Folder metadata ->
-            H.li
-                [ HE.onClick (DirectoryClicked metadata.pathLower) ]
-                [ H.text metadata.name ]
+    let
+        ( title, onClick, icon ) =
+            case entry of
+                Folder metadata ->
+                    ( metadata.name, DirectoryClicked metadata.pathLower, "folder" )
 
-        File metadata ->
-            H.li
-                [ HE.onClick (FileClicked metadata.pathLower) ]
-                [ H.text metadata.name ]
+                File metadata ->
+                    ( metadata.name, FileClicked metadata.pathLower, "insert_drive_file" )
+    in
+        H.a
+            [ HA.class "collection-item"
+            , HA.href "#"
+            , HE.onClick onClick
+            ]
+            [ H.i [ HA.class "material-icons" ] [ H.text icon ]
+            , H.text title
+            ]

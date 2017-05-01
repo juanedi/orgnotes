@@ -1,0 +1,24 @@
+nav {
+  padding: 0 20px;
+  font-size: 20px;
+}
+
+#directory-entries {
+  border: none;
+
+  .collection-item {
+    display: flex;
+    align-items: center;
+
+    font-size: 18px;
+    line-height: 3rem;
+
+    i.material-icons {
+      margin-right: 15px;
+    }
+  }
+
+  a {
+    color: #455a64;
+  }
+}

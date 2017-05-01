@@ -9,7 +9,8 @@ class ApiController < ApplicationController
         render plain: content
       end
     else
-      render json: client.list_folder(file_path).entries.map(&:to_hash)
+      entries = client.list_folder(file_path).entries
+      render json: entries.map(&:to_hash)
     end
   end
 
