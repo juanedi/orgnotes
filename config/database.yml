@@ -1,0 +1,19 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  timeout: 5000
+
+docker_local: &docker_local
+  <<: *default
+  host: localhost
+  user: orgnotes
+  password: orgnotes
+
+development:
+  <<: *docker_local
+  database: orgnotes_dev
+
+test:
+  <<: *docker_local
+  database: orgnotes_test
