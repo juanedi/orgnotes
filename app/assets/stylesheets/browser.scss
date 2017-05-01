@@ -1,10 +1,28 @@
+$blue-grey-lighten-4: #cfd8dc;
+$blue-grey: #607d8b;
+$blue-grey-darken-2: #455a64;
+
 nav {
   padding: 0 20px;
   font-size: 20px;
 }
 
+#app-progress {
+  margin: 0;
+  background-color: white;
+
+  &.inactive {
+    visibility: hidden;
+  }
+
+  .indeterminate {
+    background-color: $blue-grey-darken-2;
+  }
+}
+
 #directory-entries {
   border: none;
+  margin-top: 0;
 
   .collection-item {
     display: flex;
@@ -19,6 +37,6 @@ nav {
   }
 
   a {
-    color: #455a64;
+    color: $blue-grey-darken-2;
   }
 }

@@ -6,10 +6,16 @@ import Html.Attributes as HA
 import Html.Events as HE
 
 
-type Model
-    = Fetching Path
-    | DisplayingDirectory Path (List Entry)
-    | DisplayingFile String Path
+type DisplayModel
+    = DirectoryContent (List Entry)
+    | FileContent String
+
+
+type alias Model =
+    { path : Path
+    , loading : Bool
+    , content : Maybe DisplayModel
+    }
 
 
 type Msg
@@ -33,7 +39,7 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Fetching "/", listDirectory "/" )
+    ( { path = "/", loading = True, content = Nothing }, listDirectory "/" )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -43,19 +49,29 @@ update msg model =
             ( model, Cmd.none )
 
         DirectoryFetchSucceeded path entries ->
-            ( DisplayingDirectory path entries, Cmd.none )
+            ( { path = path
+              , loading = False
+              , content = Just (DirectoryContent entries)
+              }
+            , Cmd.none
+            )
 
         FileFetchFailed ->
             ( model, Cmd.none )
 
         FileFetchSucceeded path content ->
-            ( DisplayingFile path content, Cmd.none )
+            ( { path = path
+              , loading = False
+              , content = Just (FileContent content)
+              }
+            , Cmd.none
+            )
 
         DirectoryClicked path ->
-            ( Fetching path, listDirectory path )
+            ( { model | loading = True }, listDirectory path )
 
         FileClicked path ->
-            ( Fetching path, fetchFile path )
+            ( { model | loading = True }, fetchFile path )
 
 
 listDirectory : String -> Cmd Msg
@@ -70,36 +86,33 @@ fetchFile path =
 
 view : Model -> Html Msg
 view model =
-    case model of
-        Fetching path ->
-            layout path
-                [ H.div
-                    [ HA.class "progress" ]
-                    [ H.div [ HA.class "indeterminate" ] [] ]
-                ]
-
-        DisplayingFile path content ->
-            layout path
-                [ H.pre [] [ H.text content ] ]
-
-        DisplayingDirectory path entries ->
-            layout path
-                [ viewDirectory entries ]
-
-
-layout : Path -> List (Html Msg) -> Html Msg
-layout path body =
     let
         nav =
             H.nav
                 [ HA.class "blue-grey" ]
                 [ H.div
                     [ HA.class "nav-wrapper" ]
-                    [ H.span [] [ H.text path ]
+                    [ H.span [] [ H.text model.path ]
                     ]
                 ]
+
+        loadingBar =
+            H.div
+                [ HA.id "app-progress", HA.classList [ ( "progress", True ), ( "inactive", not model.loading ) ] ]
+                [ H.div [ HA.class "indeterminate" ] [] ]
+
+        body =
+            case model.content of
+                Nothing ->
+                    []
+
+                Just (FileContent content) ->
+                    [ H.pre [] [ H.text content ] ]
+
+                Just (DirectoryContent entries) ->
+                    [ viewDirectory entries ]
     in
-        H.div [] (nav :: body)
+        H.div [] (nav :: loadingBar :: body)
 
 
 viewDirectory : List Entry -> Html Msg
