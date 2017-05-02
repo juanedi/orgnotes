@@ -1,18 +1,20 @@
 module Main exposing (..)
 
-import Api exposing (Path, Entry(..))
+import Api exposing (Entry(..))
 import Formatting
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
-import Process
-import Task
+import Markdown
 
 
 type DisplayModel
     = DirectoryContent (List Entry)
-    | FileCanvas String
-    | FileContent String
+    | FileContent Formatting.NoteMarkup
+
+
+type alias Path =
+    String
 
 
 type alias Model =
@@ -26,10 +28,10 @@ type Msg
     = DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
+    | FileFormattingDone ( Path, Formatting.NoteMarkup )
     | FileFetchFailed
     | DirectoryClicked Path
     | FileClicked Path
-    | CanvasReady
 
 
 main : Program Never Model Msg
@@ -38,7 +40,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -71,22 +73,21 @@ update msg model =
             ( model, Cmd.none )
 
         FileFetchSucceeded path content ->
-            ( { path = path
-              , loading = True
-              , content = Just (FileCanvas content)
+            ( model, Formatting.format ( path, content ) )
+
+        FileFormattingDone ( path, markup ) ->
+            ( { model
+                | path = path
+                , loading = False
+                , content = Just (FileContent markup)
               }
-            , Task.perform (always CanvasReady) (Process.sleep 100)
+            , Cmd.none
             )
 
-        CanvasReady ->
-            case model.content of
-                Just (FileCanvas content) ->
-                    ( { model | loading = False, content = Just (FileContent content) }
-                    , Formatting.format content
-                    )
 
-                _ ->
-                    ( model, Cmd.none )
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Formatting.results FileFormattingDone
 
 
 listDirectory : String -> Cmd Msg
@@ -121,11 +122,8 @@ view model =
                 Nothing ->
                     []
 
-                Just (FileCanvas content) ->
-                    [ H.div [ HA.id "formatted-code" ] [] ]
-
-                Just (FileContent content) ->
-                    [ H.div [ HA.id "formatted-code" ] [] ]
+                Just (FileContent m) ->
+                    [ Markdown.toHtml [] m ]
 
                 Just (DirectoryContent entries) ->
                     [ viewDirectory entries ]

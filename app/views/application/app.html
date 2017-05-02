@@ -3,7 +3,10 @@
  var node = document.getElementById('elm');
  var app = Elm.Main.fullscreen();
 
- app.ports.format.subscribe(function(source) {
+ app.ports.format.subscribe(function(req) {
+   var path   = req[0]
+   var source = req[1]
+
    var parser = new Org.Parser();
    var orgDocument = parser.parse(source);
    var outputContainer = document.querySelector("#formatted-code");
@@ -15,6 +18,7 @@
      suppressAutoLink: false
    });
 
-   outputContainer.innerHTML = orgHTMLDocument;
+   /* debugger*/
+   app.ports.results.send([path, orgHTMLDocument.contentHTML]);
  });
 </script>

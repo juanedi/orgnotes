@@ -1,11 +1,7 @@
-module Api exposing (Path, Entry(..), listDirectory, fetchFile)
+module Api exposing (Entry(..), listDirectory, fetchFile)
 
 import Http
 import Json.Decode as Decode exposing (field, list, dict, int, float, string, nullable)
-
-
-type alias Path =
-    String
 
 
 type Entry

@@ -1,4 +1,18 @@
-port module Formatting exposing (format)
+port module Formatting exposing (NoteMarkup, format, results)
 
 
-port format : String -> Cmd msg
+type alias NoteSource =
+    String
+
+
+type alias NoteMarkup =
+    String
+
+
+port format : ( String, NoteSource ) -> Cmd msg
+
+
+port render : NoteMarkup -> Cmd msg
+
+
+port results : (( String, NoteMarkup ) -> msg) -> Sub msg
