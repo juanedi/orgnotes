@@ -5,6 +5,20 @@ $blue-grey-darken-2: #455a64;
 nav {
   padding: 0 20px;
   font-size: 20px;
+
+  .nav-wrapper {
+    display: flex;
+
+    .nav-button {
+      margin-right: 20px;
+    }
+
+    .nav-path {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow-x: hidden;
+    }
+  }
 }
 
 #app-progress {

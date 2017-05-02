@@ -29,6 +29,7 @@ type alias Model =
 type Msg
     = UrlChange Route
     | Navigate Route
+    | NavigateBack
     | DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
@@ -72,6 +73,9 @@ update msg model =
 
         Navigate route ->
             ( model, Routes.navigate route )
+
+        NavigateBack ->
+            ( model, Navigation.back 1 )
 
         DirectoryFetchFailed ->
             ( model, Cmd.none )
@@ -118,19 +122,33 @@ fetchFile path =
 view : Model -> Html Msg
 view model =
     let
+        loadingBar =
+            H.div
+                [ HA.id "app-progress", HA.classList [ ( "progress", True ), ( "inactive", not model.loading ) ] ]
+                [ H.div [ HA.class "indeterminate" ] [] ]
+
+        navButton =
+            case model.path of
+                "/" ->
+                    -- TODO: menu
+                    H.i [ HA.class "material-icons" ] [ H.text "menu" ]
+
+                _ ->
+                    H.i [ HE.onClick NavigateBack, HA.class "material-icons" ] [ H.text "arrow_back" ]
+
         nav =
             H.nav
                 [ HA.class "blue-grey" ]
                 [ H.div
                     [ HA.class "nav-wrapper" ]
-                    [ H.span [] [ H.text model.path ]
+                    [ H.div
+                        [ HA.class "nav-button left" ]
+                        [ navButton ]
+                    , H.span
+                        [ HA.class "nav-path" ]
+                        [ H.text model.path ]
                     ]
                 ]
-
-        loadingBar =
-            H.div
-                [ HA.id "app-progress", HA.classList [ ( "progress", True ), ( "inactive", not model.loading ) ] ]
-                [ H.div [ HA.class "indeterminate" ] [] ]
 
         body =
             case model.content of
