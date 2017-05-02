@@ -141,8 +141,7 @@ view model =
         navButton =
             case model.path of
                 "/" ->
-                    -- TODO: menu
-                    H.i [ HA.class "material-icons" ] [ H.text "menu" ]
+                    H.i [ HA.class "material-icons" ] [ H.text "folder" ]
 
                 _ ->
                     H.i [ HE.onClick NavigateBack, HA.class "material-icons" ] [ H.text "arrow_back" ]

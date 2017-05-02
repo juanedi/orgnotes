@@ -1,8 +1,7 @@
 class ApiController < ApplicationController
 
   def list
-    #TODO: currently using token from ENV
-    client = DropboxApi::Client.new
+    client = DropboxApi::Client.new(session[:oauth_token])
 
     if params[:cmd] == "cat"
       client.download(file_path) do |content|
