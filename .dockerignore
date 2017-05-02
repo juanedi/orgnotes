@@ -1,0 +1,9 @@
+.bundle
+.git
+.env
+tmp
+log
+elm-stuff
+node-modules
+
+docker-compose*.yml
