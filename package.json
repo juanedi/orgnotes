@@ -1,5 +1,7 @@
 {
   "name": "orgnotes",
   "private": true,
-  "dependencies": {}
+  "dependencies": {
+    "org": "~0.2.0"
+  }
 }

@@ -1,5 +1,20 @@
 <div id="elm"></div>
 <script type="text/javascript">
  var node = document.getElementById('elm');
- Elm.Main.fullscreen();
+ var app = Elm.Main.fullscreen();
+
+ app.ports.format.subscribe(function(source) {
+   var parser = new Org.Parser();
+   var orgDocument = parser.parse(source);
+   var outputContainer = document.querySelector("#formatted-code");
+
+   var orgHTMLDocument = orgDocument.convert(Org.ConverterHTML, {
+     headerOffset: 1,
+     exportFromLineNumber: false,
+     suppressSubScriptHandling: false,
+     suppressAutoLink: false
+   });
+
+   outputContainer.innerHTML = orgHTMLDocument;
+ });
 </script>

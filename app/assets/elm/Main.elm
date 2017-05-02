@@ -1,13 +1,17 @@
 module Main exposing (..)
 
 import Api exposing (Path, Entry(..))
+import Formatting
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
+import Process
+import Task
 
 
 type DisplayModel
     = DirectoryContent (List Entry)
+    | FileCanvas String
     | FileContent String
 
 
@@ -25,6 +29,7 @@ type Msg
     | FileFetchFailed
     | DirectoryClicked Path
     | FileClicked Path
+    | CanvasReady
 
 
 main : Program Never Model Msg
@@ -45,6 +50,12 @@ init =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        DirectoryClicked path ->
+            ( { model | loading = True }, listDirectory path )
+
+        FileClicked path ->
+            ( { model | loading = True }, fetchFile path )
+
         DirectoryFetchFailed ->
             ( model, Cmd.none )
 
@@ -61,17 +72,21 @@ update msg model =
 
         FileFetchSucceeded path content ->
             ( { path = path
-              , loading = False
-              , content = Just (FileContent content)
+              , loading = True
+              , content = Just (FileCanvas content)
               }
-            , Cmd.none
+            , Task.perform (always CanvasReady) (Process.sleep 100)
             )
 
-        DirectoryClicked path ->
-            ( { model | loading = True }, listDirectory path )
+        CanvasReady ->
+            case model.content of
+                Just (FileCanvas content) ->
+                    ( { model | loading = False, content = Just (FileContent content) }
+                    , Formatting.format content
+                    )
 
-        FileClicked path ->
-            ( { model | loading = True }, fetchFile path )
+                _ ->
+                    ( model, Cmd.none )
 
 
 listDirectory : String -> Cmd Msg
@@ -106,8 +121,11 @@ view model =
                 Nothing ->
                     []
 
+                Just (FileCanvas content) ->
+                    [ H.div [ HA.id "formatted-code" ] [] ]
+
                 Just (FileContent content) ->
-                    [ H.pre [] [ H.text content ] ]
+                    [ H.div [ HA.id "formatted-code" ] [] ]
 
                 Just (DirectoryContent entries) ->
                     [ viewDirectory entries ]
