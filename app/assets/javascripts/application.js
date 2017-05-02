@@ -12,4 +12,5 @@
 //
 //= require rails-ujs
 //= require org
+//= require formatting
 //= require Main

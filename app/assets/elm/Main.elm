@@ -28,7 +28,7 @@ type Msg
     = DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
-    | FileFormattingDone ( Path, Formatting.NoteMarkup )
+    | FileFormattingDone Path Formatting.NoteMarkup
     | FileFetchFailed
     | DirectoryClicked Path
     | FileClicked Path
@@ -73,9 +73,9 @@ update msg model =
             ( model, Cmd.none )
 
         FileFetchSucceeded path content ->
-            ( model, Formatting.format ( path, content ) )
+            ( model, Formatting.format path content )
 
-        FileFormattingDone ( path, markup ) ->
+        FileFormattingDone path markup ->
             ( { model
                 | path = path
                 , loading = False

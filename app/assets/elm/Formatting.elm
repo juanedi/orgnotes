@@ -9,10 +9,17 @@ type alias NoteMarkup =
     String
 
 
-port format : ( String, NoteSource ) -> Cmd msg
+port format_ : ( String, NoteSource ) -> Cmd msg
 
 
-port render : NoteMarkup -> Cmd msg
+port results_ : (( String, NoteMarkup ) -> msg) -> Sub msg
 
 
-port results : (( String, NoteMarkup ) -> msg) -> Sub msg
+format : String -> NoteSource -> Cmd msg
+format path source =
+    format_ ( path, source )
+
+
+results : (String -> NoteMarkup -> msg) -> Sub msg
+results tagger =
+    results_ (\( s1, s2 ) -> tagger s1 s2)
