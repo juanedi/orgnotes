@@ -22,12 +22,13 @@ nav {
 }
 
 #app-progress {
+  // reserve space even when not loading
+  // we use this instead of visibility:hidden
+  // to make the loading animation start from the beginning each time.
+  min-height: 4px;
+
   margin: 0;
   background-color: white;
-
-  &.inactive {
-    visibility: hidden;
-  }
 
   .indeterminate {
     background-color: $blue-grey-darken-2;

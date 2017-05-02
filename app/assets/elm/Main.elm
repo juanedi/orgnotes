@@ -52,24 +52,30 @@ init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     location
         |> Routes.routesParser
-        |> initPage Nothing
+        |> loadPage location.pathname Nothing
 
 
-initPage : Maybe DisplayModel -> Route -> ( Model, Cmd Msg )
-initPage content route =
+{-| Begins loading a page.
+
+A base path and content are required, which will be displayed until the content
+arrives. This is so thag, when navigating to an item, the previous filename and
+contents are shown while loading.
+-}
+loadPage : Path -> Maybe DisplayModel -> Route -> ( Model, Cmd Msg )
+loadPage basePath baseContent route =
     case route of
         DirectoryRoute path ->
-            ( { path = path, loading = True, content = content }, listDirectory path )
+            ( { path = basePath, loading = True, content = baseContent }, listDirectory path )
 
         FileRoute path ->
-            ( { path = path, loading = True, content = content }, fetchFile path )
+            ( { path = basePath, loading = True, content = baseContent }, fetchFile path )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UrlChange route ->
-            initPage model.content route
+            loadPage model.path model.content route
 
         Navigate route ->
             ( model, Routes.navigate route )
@@ -123,9 +129,14 @@ view : Model -> Html Msg
 view model =
     let
         loadingBar =
-            H.div
-                [ HA.id "app-progress", HA.classList [ ( "progress", True ), ( "inactive", not model.loading ) ] ]
-                [ H.div [ HA.class "indeterminate" ] [] ]
+            if model.loading then
+                H.div
+                    [ HA.id "app-progress", HA.class "progress" ]
+                    [ H.div [ HA.class "indeterminate" ] [] ]
+            else
+                H.div
+                    [ HA.id "app-progress" ]
+                    []
 
         navButton =
             case model.path of
