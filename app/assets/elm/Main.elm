@@ -123,7 +123,7 @@ view model =
                     []
 
                 Just (FileContent m) ->
-                    [ Markdown.toHtml [] m ]
+                    [ Markdown.toHtml [ HA.id "note-content" ] m ]
 
                 Just (DirectoryContent entries) ->
                     [ viewDirectory entries ]

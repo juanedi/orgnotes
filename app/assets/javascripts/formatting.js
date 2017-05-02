@@ -17,7 +17,8 @@ document.addEventListener("DOMContentLoaded", function() {
     var outputContainer = document.querySelector("#formatted-code");
 
     var orgHTMLDocument = orgDocument.convert(Org.ConverterHTML, {
-      headerOffset: 1,
+      // header levels to skip (1 means first level header will be h2)
+      headerOffset: 0,
       exportFromLineNumber: false,
       suppressSubScriptHandling: false,
       suppressAutoLink: false
