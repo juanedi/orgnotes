@@ -6,6 +6,8 @@ import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Markdown
+import Navigation
+import Routes exposing (Route(..))
 
 
 type DisplayModel
@@ -25,7 +27,8 @@ type alias Model =
 
 
 type Msg
-    = DirectoryFetchSucceeded Path (List Entry)
+    = UrlChange Route
+    | DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
     | FileFormattingDone Path Formatting.NoteMarkup
@@ -36,7 +39,8 @@ type Msg
 
 main : Program Never Model Msg
 main =
-    H.program
+    Navigation.program
+        (Routes.routesParser >> UrlChange)
         { init = init
         , update = update
         , view = view
@@ -44,14 +48,32 @@ main =
         }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { path = "/", loading = True, content = Nothing }, listDirectory "/" )
+init : Navigation.Location -> ( Model, Cmd Msg )
+init location =
+    location
+        |> Routes.routesParser
+        |> initPage
+
+
+initPage : Route -> ( Model, Cmd Msg )
+initPage route =
+    case (Debug.log "route" route) of
+        DirectoryRoute path ->
+            ( { path = path, loading = True, content = Nothing }, listDirectory path )
+
+        FileRoute path ->
+            ( { path = path, loading = True, content = Nothing }, fetchFile path )
+
+        NotFoundRoute ->
+            initPage (DirectoryRoute "/")
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        UrlChange route ->
+            ( model, Cmd.none )
+
         DirectoryClicked path ->
             ( { model | loading = True }, listDirectory path )
 
