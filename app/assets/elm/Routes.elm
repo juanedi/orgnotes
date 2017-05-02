@@ -1,4 +1,4 @@
-module Routes exposing (Route(..), routesParser)
+module Routes exposing (Route(..), routesParser, navigate)
 
 import Navigation
 import UrlParser exposing (oneOf, map, s, string, stringParam, top, (<?>))
@@ -7,7 +7,6 @@ import UrlParser exposing (oneOf, map, s, string, stringParam, top, (<?>))
 type Route
     = DirectoryRoute String
     | FileRoute String
-    | NotFoundRoute
 
 
 routesParser : Navigation.Location -> Route
@@ -29,4 +28,19 @@ routesParser location =
         location
             |> parseCmd
             |> Maybe.map pathRoute
-            |> Maybe.withDefault NotFoundRoute
+            |> Maybe.withDefault (DirectoryRoute "/")
+
+
+navigate : Route -> Cmd msg
+navigate route =
+    Navigation.newUrl <| routeToPath route
+
+
+routeToPath : Route -> String
+routeToPath route =
+    case route of
+        DirectoryRoute path ->
+            path
+
+        FileRoute path ->
+            path ++ "?cmd=cat"

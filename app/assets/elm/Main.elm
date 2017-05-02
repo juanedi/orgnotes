@@ -28,13 +28,12 @@ type alias Model =
 
 type Msg
     = UrlChange Route
+    | Navigate Route
     | DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
     | FileFormattingDone Path Formatting.NoteMarkup
     | FileFetchFailed
-    | DirectoryClicked Path
-    | FileClicked Path
 
 
 main : Program Never Model Msg
@@ -52,33 +51,27 @@ init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     location
         |> Routes.routesParser
-        |> initPage
+        |> initPage Nothing
 
 
-initPage : Route -> ( Model, Cmd Msg )
-initPage route =
-    case (Debug.log "route" route) of
+initPage : Maybe DisplayModel -> Route -> ( Model, Cmd Msg )
+initPage content route =
+    case route of
         DirectoryRoute path ->
-            ( { path = path, loading = True, content = Nothing }, listDirectory path )
+            ( { path = path, loading = True, content = content }, listDirectory path )
 
         FileRoute path ->
-            ( { path = path, loading = True, content = Nothing }, fetchFile path )
-
-        NotFoundRoute ->
-            initPage (DirectoryRoute "/")
+            ( { path = path, loading = True, content = content }, fetchFile path )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UrlChange route ->
-            ( model, Cmd.none )
+            initPage model.content route
 
-        DirectoryClicked path ->
-            ( { model | loading = True }, listDirectory path )
-
-        FileClicked path ->
-            ( { model | loading = True }, fetchFile path )
+        Navigate route ->
+            ( model, Routes.navigate route )
 
         DirectoryFetchFailed ->
             ( model, Cmd.none )
@@ -168,14 +161,13 @@ viewEntry entry =
         ( title, onClick, icon ) =
             case entry of
                 Folder metadata ->
-                    ( metadata.name, DirectoryClicked metadata.pathLower, "folder" )
+                    ( metadata.name, Navigate (DirectoryRoute metadata.pathLower), "folder" )
 
                 File metadata ->
-                    ( metadata.name, FileClicked metadata.pathLower, "insert_drive_file" )
+                    ( metadata.name, Navigate (FileRoute metadata.pathLower), "insert_drive_file" )
     in
         H.a
             [ HA.class "collection-item"
-            , HA.href "#"
             , HE.onClick onClick
             ]
             [ H.i [ HA.class "material-icons" ] [ H.text icon ]
