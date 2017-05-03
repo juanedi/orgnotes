@@ -1,0 +1,28 @@
+#+TITLE: OrgNotes
+
+This application gives you mobile web access to your [[https://www.emacswiki.org/emacs/OrgMode][Org Mode]] stored in Dropbox. Notes are parsed
+and displayed with nicer styles, using the great [[https://github.com/mooz/org-js][org-js]] parser.
+
+* FAQ
+
+** Does it have full access to my Dropbox?
+   No, Dropbox permissions are limited to the applications directory. This means the app cannot access the rest of your files at all.
+
+** Does it support other formats?
+   Markdown support is comming soon, in case you have some legacy notes ;-)
+
+** How to I use it?
+   Right now there is no public hosted instance, but you can easily run the
+   application using the provided docker image. Just register your own [[https://www.dropbox.com/developers/apps][Dropbox
+   application]] and complete the =docker-compose.yml= file with the corresponding
+   credentials. Then run:
+
+   #+BEGIN_SRC bash
+   docker-compose up
+   #+END_SRC
+
+** How does it look like?
+
+   [[docs/screen-browser.png]]
+   
+   [[docs/screen-note.png]]
