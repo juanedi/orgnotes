@@ -18,6 +18,7 @@ and displayed with nicer styles, using the great [[https://github.com/mooz/org-j
    credentials. Then run:
 
    #+BEGIN_SRC bash
+   docker-compose build
    docker-compose up
    #+END_SRC
 
