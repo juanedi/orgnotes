@@ -7,8 +7,13 @@ class ApplicationController < ActionController::Base
   end
 
   def check_authenticated
-    unless session[:oauth_token]
+    unless oauth_token
       redirect_to "/oauth/auth"
     end
+  end
+
+  def oauth_token
+    # session[:oauth_token]
+    cookies.encrypted[:orgnotes_data]
   end
 end

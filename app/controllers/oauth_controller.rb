@@ -13,8 +13,7 @@ class OauthController < ActionController::Base
   # GET /oauth/auth_callback?code=VofXAX8DO1sAAAAAAAACUKBwkDZyMg1zKT0f_FNONeA
   def callback
     auth_bearer = authenticator.get_token(params[:code], :redirect_uri => redirect_uri)
-    token = auth_bearer.token
-    session[:oauth_token] = token
+    cookies.encrypted[:orgnotes_data] = { value: auth_bearer.token, expires: 1.year.from_now }
 
     redirect_to "/"
   end
