@@ -1,15 +1,11 @@
 version: '2'
 services:
-  postgres:
-    image: postgres:9.5
+  web:
+    build: .
     environment:
-      POSTGRES_PASSWORD: orgnotes
-      POSTGRES_USER: orgnotes
-      POSTGRES_DB: orgnotes
+      DROPBOX_CLIENT_ID: YOUR_DROPBOX_CLIENT_ID
+      DROPBOX_CLIENT_SECRET: YOUR_DROPBOX_CLIENT_SECRET
+      DROPBOX_REDIRECT_URI: YOUR_DROPBOX_REDIRECT_URI
+      SECRET_KEY_BASE: YOUR_SECRET_KEY_BASE
     ports:
-      - "5432:5432"
-    volumes:
-      - db:/var/lib/postgresql/data
-
-volumes:
-  db:
+      - "3000:80"

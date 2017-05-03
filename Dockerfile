@@ -6,7 +6,6 @@ ENV RAILS_SERVE_STATIC_FILES "1"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt

@@ -1,6 +1,12 @@
 require_relative 'boot'
 
-require 'rails/all'
+# require individual modules instead of rails/allk
+# see https://github.com/rails/rails/blob/master/railties/lib/rails/all.rb
+
+require "rails"
+require "action_controller/railtie"
+require "action_view/railtie"
+require "sprockets/railtie"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
