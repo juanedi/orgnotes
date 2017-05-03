@@ -1,4 +1,4 @@
-#+TITLE: OrgNotes
+#+TITLE: org-notes
 
 This application gives you mobile web access to your [[https://www.emacswiki.org/emacs/OrgMode][Org Mode]] stored in Dropbox. Notes are parsed
 and displayed with nicer styles, using the great [[https://github.com/mooz/org-js][org-js]] parser.
