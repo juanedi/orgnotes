@@ -10,11 +10,6 @@ import Navigation
 import Routes exposing (Route(..))
 
 
-type DisplayModel
-    = DirectoryContent (List Entry)
-    | FileContent Formatting.NoteMarkup
-
-
 type alias Path =
     String
 
@@ -22,14 +17,22 @@ type alias Path =
 type alias Model =
     { path : Path
     , loading : Bool
-    , content : Maybe DisplayModel
+    , errorMessage : Maybe String
+    , content : DisplayModel
     }
+
+
+type DisplayModel
+    = Initializing
+    | DirectoryContent (List Entry)
+    | FileContent Formatting.NoteMarkup
 
 
 type Msg
     = UrlChange Route
     | Navigate Route
     | NavigateBack
+    | DismissError
     | DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
@@ -52,7 +55,7 @@ init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     location
         |> Routes.routesParser
-        |> loadPage location.pathname Nothing
+        |> loadPage location.pathname Initializing
 
 
 {-| Begins loading a page.
@@ -60,15 +63,26 @@ init location =
 A base path and content are required, which will be displayed until the content
 arrives. This is so thag, when navigating to an item, the previous filename and
 contents are shown while loading.
--}
-loadPage : Path -> Maybe DisplayModel -> Route -> ( Model, Cmd Msg )
-loadPage basePath baseContent route =
-    case route of
-        DirectoryRoute path ->
-            ( { path = basePath, loading = True, content = baseContent }, listDirectory path )
 
-        FileRoute path ->
-            ( { path = basePath, loading = True, content = baseContent }, fetchFile path )
+-}
+loadPage : Path -> DisplayModel -> Route -> ( Model, Cmd Msg )
+loadPage basePath baseContent route =
+    let
+        action =
+            case route of
+                DirectoryRoute path ->
+                    listDirectory path
+
+                FileRoute path ->
+                    fetchFile path
+    in
+        ( { path = basePath
+          , loading = True
+          , errorMessage = Nothing
+          , content = baseContent
+          }
+        , action
+        )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -83,19 +97,33 @@ update msg model =
         NavigateBack ->
             ( model, Navigation.back 1 )
 
+        DismissError ->
+            ( { model | errorMessage = Nothing }, Cmd.none )
+
         DirectoryFetchFailed ->
-            ( model, Cmd.none )
+            ( { model
+                | loading = False
+                , errorMessage = Just "Couldn't fetch directory"
+              }
+            , Cmd.none
+            )
 
         DirectoryFetchSucceeded path entries ->
-            ( { path = path
-              , loading = False
-              , content = Just (DirectoryContent entries)
+            ( { model
+                | path = path
+                , loading = False
+                , content = DirectoryContent entries
               }
             , Cmd.none
             )
 
         FileFetchFailed ->
-            ( model, Cmd.none )
+            ( { model
+                | loading = False
+                , errorMessage = Just "Couldn't fetch file"
+              }
+            , Cmd.none
+            )
 
         FileFetchSucceeded path content ->
             ( model, Formatting.format path content )
@@ -104,7 +132,7 @@ update msg model =
             ( { model
                 | path = path
                 , loading = False
-                , content = Just (FileContent markup)
+                , content = FileContent markup
               }
             , Cmd.none
             )
@@ -138,6 +166,9 @@ view model =
                     [ HA.id "app-progress" ]
                     []
 
+        errorMessage =
+            viewErrorMessage model.errorMessage
+
         navButton =
             case model.path of
                 "/" ->
@@ -162,16 +193,40 @@ view model =
 
         body =
             case model.content of
-                Nothing ->
+                Initializing ->
                     []
 
-                Just (FileContent m) ->
+                FileContent m ->
                     [ Markdown.toHtml [ HA.id "note-content" ] m ]
 
-                Just (DirectoryContent entries) ->
+                DirectoryContent entries ->
                     [ viewDirectory entries ]
     in
-        H.div [] (nav :: loadingBar :: body)
+        H.div [] (nav :: loadingBar :: errorMessage :: body)
+
+
+viewErrorMessage : Maybe String -> Html Msg
+viewErrorMessage maybeError =
+    case maybeError of
+        Nothing ->
+            H.div [] []
+
+        Just msg ->
+            H.div
+                [ HA.id "error-message"
+                , HA.class "card blue-grey darken-1"
+                ]
+                [ H.div
+                    [ HA.class "card-content white-text" ]
+                    [ H.span [ HA.class "card-title" ] [ H.text msg ]
+                    , H.p [] [ H.text "Sorry about that. Maybe reloading helps :-(" ]
+                    ]
+                , H.div
+                    [ HA.class "card-action" ]
+                    [ H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
+                    , H.a [ HE.onClick DismissError ] [ H.text "Dismiss" ]
+                    ]
+                ]
 
 
 viewDirectory : List Entry -> Html Msg

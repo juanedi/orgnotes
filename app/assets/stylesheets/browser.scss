@@ -35,6 +35,23 @@ nav {
   }
 }
 
+#error-message {
+  position: absolute;
+  bottom: 50px;
+  width: 94%;
+  margin-left: 3%;
+
+  .card-content {
+    padding: 15px;
+  }
+
+  .card-action {
+    padding: 15px;
+    display: flex;
+    flex-direction: row-reverse;
+  }
+}
+
 #directory-entries {
   border: none;
   margin-top: 0;
