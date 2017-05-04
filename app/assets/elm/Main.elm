@@ -231,11 +231,21 @@ viewErrorMessage maybeError =
 
 viewDirectory : List Entry -> Html Msg
 viewDirectory entries =
-    H.div
-        [ HA.id "directory-entries"
-        , HA.class "collection"
-        ]
-        (List.map viewEntry entries)
+    if List.isEmpty entries then
+        H.div
+            [ HA.class "empty-directory valign-wrapper center-align" ]
+            [ H.div
+                [ HA.class "center-align" ]
+                [ H.p [ HA.class "shrug" ] [ H.text "¯\\_(ツ)_/¯" ]
+                , H.p [] [ H.text "Nothing here!" ]
+                ]
+            ]
+    else
+        H.div
+            [ HA.id "directory-entries"
+            , HA.class "collection"
+            ]
+            (List.map viewEntry entries)
 
 
 viewEntry : Entry -> Html Msg

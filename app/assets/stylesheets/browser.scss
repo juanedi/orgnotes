@@ -72,3 +72,18 @@ nav {
     color: $blue-grey-darken-2;
   }
 }
+
+
+.empty-directory {
+  height: 65vh;
+
+  > div {
+    font-size: 17px;
+    color: #9E9E9E;
+    width: 100%;
+
+    .shrug {
+      font-size: 28px;
+    }
+  }
+}
