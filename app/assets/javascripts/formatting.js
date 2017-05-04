@@ -21,9 +21,10 @@ document.addEventListener("DOMContentLoaded", function() {
       headerOffset: 0,
       exportFromLineNumber: false,
       suppressSubScriptHandling: false,
-      suppressAutoLink: false
+      suppressAutoLink: false,
+      translateSymbolArrow: true
     });
 
-    resultsPort.send([path, orgHTMLDocument.contentHTML]);
+    resultsPort.send([path, orgHTMLDocument.toString()]);
   });
 });
