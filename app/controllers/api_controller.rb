@@ -1,14 +1,14 @@
 class ApiController < ApplicationController
 
   def list
-    client = DropboxApi::Client.new(oauth_token)
+    driver = initialize_driver
 
     if params[:cmd] == "cat"
-      client.download(file_path) do |content|
+     driver.get_file(file_path) do |content|
         render plain: content
       end
     else
-      render json: entries(client, file_path)
+      render json: driver.list_directory(file_path)
     end
   end
 
@@ -26,11 +26,12 @@ class ApiController < ApplicationController
     path
   end
 
-  def entries(client, file_path)
-    client
-      .list_folder(file_path)
-      .entries
-      .map(&:to_hash)
-      .select { |e| e[".tag"] == "folder" || e["name"] =~ /\.org$/ }
+
+  def initialize_driver
+    if ENV['LOCAL_DRIVER']
+         # ...
+    else
+      DropboxDriver.new(oauth_token)
+    end
   end
 end
