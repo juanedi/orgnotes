@@ -6,11 +6,17 @@ class LocalFilesystemDriver
 
   def get_file(path)
     file_path = absolute_path(path)
+
     raise "not found" unless File.file?(file_path) && File.readable?(file_path)
-    File.read(full_path)
+    contents = File.read(file_path)
+
+    if block_given?
+      yield contents
+    else
+      return contents
+    end
   end
 
-  # [{ kind: 'directory', path_display: '/../..', path_lower: '/../..' }, ..., ...]
   def list_directory(path)
     dir_path = absolute_path(path)
 
