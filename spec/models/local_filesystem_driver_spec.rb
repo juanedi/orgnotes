@@ -3,9 +3,8 @@ require "rails_helper"
 RSpec.describe LocalFilesystemDriver do
   describe "listing contents" do
     it "list subdirectories of root" do
-      base_dir = Dir.mktmpdir
-      create_subdir(base_dir, "foo")
-      create_file(base_dir, "bar.org", "")
+      base_dir = setup_test_tree({ "foo" => {},
+                                   "bar.org" => "" })
 
       driver = LocalFilesystemDriver.new(base_dir)
 
@@ -23,9 +22,9 @@ RSpec.describe LocalFilesystemDriver do
     end
 
     it "lists subdirectories in nested paths" do
-      base_dir = Dir.mktmpdir
-      create_subdir(base_dir, "foo/bar")
-      create_file(base_dir, "foo/baz.org", "")
+      base_dir = setup_test_tree({ "foo" =>
+                                   { "bar" => {},
+                                     "baz.org" => "" }})
 
       driver = LocalFilesystemDriver.new(base_dir)
 
@@ -43,32 +42,36 @@ RSpec.describe LocalFilesystemDriver do
 
   describe "displaying file contents" do
     it "displays contents of files in root directory" do
-      base_dir = Dir.mktmpdir
-      create_file(base_dir, "foo.org", "foobar")
+      base_dir = setup_test_tree({ "foo.org" => "foobar" })
 
       driver = LocalFilesystemDriver.new(base_dir)
       expect(driver.get_file("/foo.org")).to eq("foobar")
     end
 
     it "displays file contents for file in root directory" do
-      base_dir = Dir.mktmpdir
-      create_subdir(base_dir, "foo")
-      create_file(base_dir, "foo/bar.org", "foobar")
+      base_dir = setup_test_tree({ "foo" => { "bar.org" => "foobar" }})
 
       driver = LocalFilesystemDriver.new(base_dir)
       expect(driver.get_file("/foo/bar.org")).to eq("foobar")
     end
   end
 
-  def create_subdir(base_dir, relative_path)
-    FileUtils.mkdir_p(absolute_path(base_dir, relative_path))
+  def setup_test_tree(contents)
+    base_dir = Dir.mktmpdir
+    setup_test_dir(base_dir, contents)
+    return base_dir
   end
 
-  def create_file(base_dir, relative_path, content)
-    File.write(absolute_path(base_dir, relative_path), content)
-  end
+  def setup_test_dir(current_dir, contents)
+    contents.each do |k,v|
+      absolute_path = Pathname.new(current_dir).join(k)
 
-  def absolute_path(base_dir, relative_path)
-    Pathname.new(base_dir).join(relative_path)
+      if v.is_a?(Hash)
+        FileUtils.mkdir_p(absolute_path)
+        setup_test_dir(Pathname.new(current_dir).join(k), v)
+      elsif v.is_a?(String)
+        File.write(absolute_path, v)
+      end
+    end
   end
 end
