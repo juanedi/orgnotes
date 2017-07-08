@@ -1,6 +1,8 @@
 class LocalFilesystemDriver
 
-  def initialize(base_path)
+  DEFAULT_BASE_PATH = Rails.root.join("tmp/local-notes")
+
+  def initialize(base_path = DEFAULT_BASE_PATH)
     @root_path = Pathname.new(base_path)
   end
 

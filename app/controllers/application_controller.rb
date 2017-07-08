@@ -23,7 +23,7 @@ class ApplicationController < ActionController::Base
 
   def initialize_driver
     if mock_dropbox?
-      LocalFilesystemDriver.new(Rails.root.join("tmp/local-notes"))
+      LocalFilesystemDriver.new
     else
       DropboxDriver.new(oauth_token)
     end
