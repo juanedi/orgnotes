@@ -7,13 +7,25 @@ class ApplicationController < ActionController::Base
   end
 
   def check_authenticated
-    unless oauth_token
+    unless mock_dropbox? || oauth_token
       redirect_to "/oauth/auth"
     end
+  end
+
+  def mock_dropbox?
+    ENV['MOCK_DROPBOX']
   end
 
   def oauth_token
     # session[:oauth_token]
     cookies.encrypted[:orgnotes_data]
+  end
+
+  def initialize_driver
+    if mock_dropbox?
+      LocalFilesystemDriver.new
+    else
+      DropboxDriver.new(oauth_token)
+    end
   end
 end

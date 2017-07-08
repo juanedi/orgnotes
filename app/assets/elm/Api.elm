@@ -17,7 +17,7 @@ type alias EntryMetadata =
 
 
 type alias RawEntry =
-    { tag : String
+    { kind : String
     , name : String
     , pathLower : String
     , pathDisplay : String
@@ -44,13 +44,13 @@ entryDecoder =
     let
         rawEntryDecoder =
             Decode.map4 RawEntry
-                (field ".tag" string)
+                (field "kind" string)
                 (field "name" string)
                 (field "path_lower" string)
                 (field "path_display" string)
 
-        toEntry { tag, name, pathLower, pathDisplay } =
-            if tag == "folder" then
+        toEntry { kind, name, pathLower, pathDisplay } =
+            if kind == "folder" then
                 Folder { name = name, pathLower = pathLower, pathDisplay = pathDisplay }
             else
                 File { name = name, pathLower = pathLower, pathDisplay = pathDisplay }
