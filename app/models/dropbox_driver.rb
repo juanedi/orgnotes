@@ -8,7 +8,7 @@ class DropboxDriver
     @client.download(file_path)
   end
 
-  # [{ kind: 'directory', path_display: '/../..', path_lower: '/../..' }, ..., ...]
+  # [{ kind: 'directory', name: "..", path_display: '/../..', path_lower: '/../..' }, ..., ...]
   def list_directory(path)
     @client
       .list_folder(path)

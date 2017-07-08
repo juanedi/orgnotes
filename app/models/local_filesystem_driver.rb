@@ -1,29 +1,53 @@
 class LocalFilesystemDriver
 
   def initialize(base_path)
-    @base_path
+    @root_path = Pathname.new(base_path)
   end
 
   def get_file(path)
-    full_path = File.join(@base_path, path)
+    file_path = absolute_path(path)
+    raise "not found" unless File.file?(file_path) && File.readable?(file_path)
     File.read(full_path)
   end
 
   # [{ kind: 'directory', path_display: '/../..', path_lower: '/../..' }, ..., ...]
   def list_directory(path)
-    entries = Dir[path].select do |entry|
-      File.directory?(entry) || entry.end_with? "org"
+    dir_path = absolute_path(path)
+
+    raise "not found" unless Dir.exists?(dir_path) && File.readable?(dir_path)
+
+    entries = Dir.entries(dir_path).select { |e| !e.starts_with? "." }
+
+    entries.reduce([]) do |result, entry_name|
+      entry_absolute_path = Pathname.new(dir_path).join(entry_name).to_s
+      entry_relative_path = relative_path(entry_absolute_path)
+
+      if File.directory?(entry_absolute_path)
+        result.push(entry_json("directory", entry_name, entry_relative_path))
+      elsif entry_name.ends_with? "org"
+        result.push(entry_json("file", entry_name, entry_relative_path))
+      else
+        result
+      end
     end
+  end
 
-    entries.map do |entry|
-      kind = File.directory?(entry) ? "directory" : "file"
+  private
 
-      full_path = Pathname.new(entry)
-      root = Pathname.new(@base_path)
+  def entry_json(kind, name, relative_path)
+    {
+      "kind" => kind,
+      "name" => name,
+      "path_display" => "/#{relative_path}",
+      "path_lower" => "/#{relative_path}".downcase
+    }
+  end
 
-      relative_path = full_path.relative_path_from(root).to_s
+  def absolute_path(relative_path)
+    @root_path.join(relative_path.gsub(/^\//, "./"))
+  end
 
-      { "kind" => kind, "path_display" => relative_path, "path_lower" => relative_path.to_lower }
-    end
+  def relative_path(absolute_path)
+    Pathname.new(absolute_path).relative_path_from(@root_path).to_s
   end
 end

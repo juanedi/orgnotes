@@ -25,13 +25,4 @@ class ApiController < ApplicationController
 
     path
   end
-
-
-  def initialize_driver
-    if ENV['LOCAL_DRIVER']
-         # ...
-    else
-      DropboxDriver.new(oauth_token)
-    end
-  end
 end
