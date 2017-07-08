@@ -9,15 +9,17 @@ RSpec.describe LocalFilesystemDriver do
 
       driver = LocalFilesystemDriver.new(base_dir)
 
-      expect(driver.list_directory("/")).to match_array([{ "kind" => "directory",
-                                                           "name" => "foo",
-                                                           "path_display" => "/foo",
-                                                           "path_lower" => "/foo" },
+      expect(driver.list_directory("")).to eq(driver.list_directory("/"))
 
-                                                         { "kind" => "file",
-                                                           "name" => "bar.org",
-                                                           "path_display" => "/bar.org",
-                                                           "path_lower" => "/bar.org" }])
+      expect(driver.list_directory("")).to match_array([{ "kind" => "directory",
+                                                          "name" => "foo",
+                                                          "path_display" => "/foo",
+                                                          "path_lower" => "/foo" },
+
+                                                        { "kind" => "file",
+                                                          "name" => "bar.org",
+                                                          "path_display" => "/bar.org",
+                                                          "path_lower" => "/bar.org" }])
     end
 
     it "lists subdirectories in nested paths" do

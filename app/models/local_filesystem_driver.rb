@@ -50,7 +50,8 @@ class LocalFilesystemDriver
   end
 
   def absolute_path(relative_path)
-    @root_path.join(relative_path.gsub(/^\//, "./"))
+    sanitized = relative_path.gsub(/^\//, "./") # "/" => "./"
+    @root_path.join(sanitized)
   end
 
   def relative_path(absolute_path)
