@@ -4,7 +4,7 @@ class ApiController < ApplicationController
     driver = initialize_driver
 
     if params[:cmd] == "cat"
-     driver.get_file(file_path) do |content|
+      driver.get_file(file_path) do |content|
         render plain: content
       end
     else

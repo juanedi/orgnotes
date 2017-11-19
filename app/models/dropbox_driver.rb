@@ -4,8 +4,10 @@ class DropboxDriver
     @client = DropboxApi::Client.new(oauth_token)
   end
 
-  def get_file(path)
-    @client.download(file_path)
+  def get_file(file_path)
+    @client.download(file_path) do |content|
+      yield content
+    end
   end
 
   def list_directory(path)
