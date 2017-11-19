@@ -17,6 +17,7 @@ class DropboxDriver
       .map(&:to_hash)
       .select { |e| e[".tag"] == "folder" || e["name"] =~ /\.org$/ }
       .map    { |e| api_json(e) }
+      .sort_by { |e| e["name"] }
   end
 
   private
