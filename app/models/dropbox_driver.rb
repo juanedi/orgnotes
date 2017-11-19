@@ -4,8 +4,8 @@ class DropboxDriver
     @client = DropboxApi::Client.new(oauth_token)
   end
 
-  def get_file(file_path)
-    @client.download(file_path) do |content|
+  def get_file(path)
+    @client.download(path) do |content|
       yield content
     end
   end
@@ -15,12 +15,21 @@ class DropboxDriver
       .list_folder(path)
       .entries
       .map(&:to_hash)
-      .select { |e| e[".tag"] == "folder" || e["name"] =~ /\.org$/ }
-      .map    { |e| api_json(e) }
-      .sort_by { |e| e["name"] }
+      .select { |r| accept?(r) }
+      .map    { |r| api_json(r) }
+      .sort_by { |e| sort_key(e) }
   end
 
   private
+
+  def accept?(api_result)
+    api_result[".tag"] == "folder" || api_result["name"] =~ /\.org$/
+  end
+
+  def sort_key(entry)
+    # list directories first
+    [ entry["kind"] == "folder" ? 0 : 1, entry["name"] ]
+  end
 
   def api_json(entry)
     {
