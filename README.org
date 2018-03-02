@@ -12,10 +12,12 @@ and displayed with nicer styles, using the great [[https://github.com/mooz/org-j
    Markdown support is comming soon, in case you have some legacy notes ;-)
 
 ** How to I use it?
-   Right now there is no public hosted instance, but you can easily run the
-   application using the provided docker image. Just register your own [[https://www.dropbox.com/developers/apps][Dropbox
-   application]] and complete the =docker-compose.yml= file with the corresponding
-   credentials. Then run:
+   Right now there is no public hosted instance, but you can easily run the application using the provided docker image:
+
+   - Register your own [[https://www.dropbox.com/developers/apps][Dropbox application]] .
+   - Create a [[https://docs.docker.com/compose/env-file/][.env file]] at the project root specifying the values of all variables present in =docker-compose.yml=.
+
+   After that, run
 
    #+BEGIN_SRC bash
    docker-compose build
