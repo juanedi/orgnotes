@@ -38,10 +38,6 @@ type Msg
     | FileFetchFailed
 
 
-type alias NoteSource =
-    String
-
-
 port renderNote : String -> Cmd msg
 
 
