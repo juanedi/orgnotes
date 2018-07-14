@@ -1,4 +1,7 @@
 #note-content {
+  font-family: 'Georgia, serif';
+  font-size: 1.5rem;
+  line-height: 1.5;
   padding: 10px;
 
   .section-number {
@@ -6,14 +9,17 @@
   }
 
   h1 {
-    font-size: 3rem;
-    margin: 1.5rem 0 1.5rem 0;
+    // Our rendering library generates the same tag for the note's title and for top level headers
+    &:first-of-type {
+      font-size: 3rem;
+    }
+
+    font-size: 2.5rem;
+    margin: 1.5rem 0 2rem 0;
   }
 
   h2 {
     font-size: 2rem;
-    text-transform: uppercase;
-    margin: 2.5rem 0 0.6rem 0;
   }
 
   h3 {
