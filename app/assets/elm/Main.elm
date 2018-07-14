@@ -1,11 +1,10 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Api exposing (Entry(..))
-import Formatting
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
-import Markdown
+import Html.Keyed
 import Navigation
 import Routes exposing (Route(..))
 
@@ -25,7 +24,7 @@ type alias Model =
 type DisplayModel
     = Initializing
     | DirectoryContent (List Entry)
-    | FileContent Formatting.NoteMarkup
+    | FileContent String
 
 
 type Msg
@@ -36,8 +35,14 @@ type Msg
     | DirectoryFetchSucceeded Path (List Entry)
     | DirectoryFetchFailed
     | FileFetchSucceeded Path String
-    | FileFormattingDone Path Formatting.NoteMarkup
     | FileFetchFailed
+
+
+type alias NoteSource =
+    String
+
+
+port renderNote : String -> Cmd msg
 
 
 main : Program Never Model Msg
@@ -47,7 +52,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = subscriptions
+        , subscriptions = \model -> Sub.none
         }
 
 
@@ -76,13 +81,13 @@ loadPage basePath baseContent route =
                 FileRoute path ->
                     fetchFile path
     in
-        ( { path = basePath
-          , loading = True
-          , errorMessage = Nothing
-          , content = baseContent
-          }
-        , action
-        )
+    ( { path = basePath
+      , loading = True
+      , errorMessage = Nothing
+      , content = baseContent
+      }
+    , action
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -126,21 +131,13 @@ update msg model =
             )
 
         FileFetchSucceeded path content ->
-            ( model, Formatting.format path content )
-
-        FileFormattingDone path markup ->
             ( { model
                 | path = path
                 , loading = False
-                , content = FileContent markup
+                , content = FileContent path
               }
-            , Cmd.none
+            , renderNote content
             )
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Formatting.results FileFormattingDone
 
 
 listDirectory : String -> Cmd Msg
@@ -190,19 +187,33 @@ view model =
                         [ H.text model.path ]
                     ]
                 ]
-
-        body =
-            case model.content of
-                Initializing ->
-                    []
-
-                FileContent m ->
-                    [ Markdown.toHtml [ HA.id "note-content" ] m ]
-
-                DirectoryContent entries ->
-                    [ viewDirectory entries ]
     in
-        H.div [] (nav :: loadingBar :: errorMessage :: body)
+    H.div []
+        [ nav
+        , loadingBar
+        , errorMessage
+        , viewContent model.content
+        ]
+
+
+viewContent : DisplayModel -> Html Msg
+viewContent content =
+    Html.Keyed.node "div" [] <|
+        case content of
+            Initializing ->
+                []
+
+            FileContent path ->
+                [ ( "note-content" ++ toString path
+                  , H.div [ HA.id "note-content" ] []
+                  )
+                ]
+
+            DirectoryContent entries ->
+                [ ( "directory-content"
+                  , viewDirectory entries
+                  )
+                ]
 
 
 viewErrorMessage : Maybe String -> Html Msg
@@ -259,10 +270,10 @@ viewEntry entry =
                 File metadata ->
                     ( metadata.name, Navigate (FileRoute metadata.pathLower), "insert_drive_file" )
     in
-        H.a
-            [ HA.class "collection-item"
-            , HE.onClick onClick
-            ]
-            [ H.i [ HA.class "material-icons" ] [ H.text icon ]
-            , H.text title
-            ]
+    H.a
+        [ HA.class "collection-item"
+        , HE.onClick onClick
+        ]
+        [ H.i [ HA.class "material-icons" ] [ H.text icon ]
+        , H.text title
+        ]
