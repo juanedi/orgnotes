@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var source = req[1]
 
     var parser = new Org.Parser();
-    var orgDocument = parser.parse(source);
+    var orgDocument = parser.parse(source, { toc: 0 });
     var outputContainer = document.querySelector("#formatted-code");
 
     var orgHTMLDocument = orgDocument.convert(Org.ConverterHTML, {
