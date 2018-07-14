@@ -1,7 +1,7 @@
-module Routes exposing (Route(..), routesParser, navigate)
+module Route exposing (Route(..), parse, toPath)
 
 import Navigation
-import UrlParser exposing (oneOf, map, s, string, stringParam, top, (<?>))
+import UrlParser exposing ((<?>), map, oneOf, s, string, stringParam, top)
 
 
 type Route
@@ -9,8 +9,8 @@ type Route
     | FileRoute String
 
 
-routesParser : Navigation.Location -> Route
-routesParser location =
+parse : Navigation.Location -> Route
+parse location =
     let
         parseCmd location =
             -- Hack :)
@@ -25,19 +25,14 @@ routesParser location =
             else
                 DirectoryRoute location.pathname
     in
-        location
-            |> parseCmd
-            |> Maybe.map pathRoute
-            |> Maybe.withDefault (DirectoryRoute "/")
+    location
+        |> parseCmd
+        |> Maybe.map pathRoute
+        |> Maybe.withDefault (DirectoryRoute "/")
 
 
-navigate : Route -> Cmd msg
-navigate route =
-    Navigation.newUrl <| routeToPath route
-
-
-routeToPath : Route -> String
-routeToPath route =
+toPath : Route -> String
+toPath route =
     case route of
         DirectoryRoute path ->
             path

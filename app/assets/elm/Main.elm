@@ -6,7 +6,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Navigation
-import Routes exposing (Route(..))
+import Route exposing (Route(..))
 
 
 type alias Path =
@@ -44,7 +44,7 @@ port renderNote : String -> Cmd msg
 main : Program Never Model Msg
 main =
     Navigation.program
-        (Routes.routesParser >> UrlChange)
+        (Route.parse >> UrlChange)
         { init = init
         , update = update
         , view = view
@@ -55,7 +55,7 @@ main =
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     location
-        |> Routes.routesParser
+        |> Route.parse
         |> loadPage location.pathname Initializing
 
 
@@ -93,7 +93,7 @@ update msg model =
             loadPage model.path model.content route
 
         Navigate route ->
-            ( model, Routes.navigate route )
+            ( model, Navigation.newUrl (Route.toPath route) )
 
         NavigateBack ->
             ( model, Navigation.back 1 )
