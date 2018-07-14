@@ -17,6 +17,7 @@ type alias Model =
     , loading : Bool
     , errorMessage : Maybe String
     , content : DisplayModel
+    , typeHint : Maybe Api.ResourceType
     }
 
 
@@ -28,7 +29,7 @@ type DisplayModel
 
 type Msg
     = UrlChange Path
-    | Navigate Path
+    | Navigate Api.Entry
     | NavigateBack
     | DismissError
     | ResourceFetchSucceeded Path Api.Resource
@@ -53,37 +54,13 @@ main =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    loadPage
-        { typeHint = Nothing
-        , currentPath = location.pathname
-        , currentContent = Initializing
-        , newPath = location.pathname
-        }
-
-
-type alias PageLoad =
-    { typeHint : Maybe Api.ResourceType
-    , currentPath : Path
-    , currentContent : DisplayModel
-    , newPath : Path
-    }
-
-
-{-| Begins loading a page.
-
-A base path and content are required, which will be displayed until the content
-arrives. This is so thag, when navigating to an item, the previous filename and
-contents are shown while loading.
-
--}
-loadPage : PageLoad -> ( Model, Cmd Msg )
-loadPage pageLoad =
-    ( { path = pageLoad.currentPath
+    ( { path = location.pathname
       , loading = True
       , errorMessage = Nothing
-      , content = pageLoad.currentContent
+      , content = Initializing
+      , typeHint = Nothing
       }
-    , fetchResource pageLoad.typeHint pageLoad.newPath
+    , fetchResource Nothing location.pathname
     )
 
 
@@ -91,18 +68,30 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UrlChange path ->
-            loadPage
-                { typeHint = Nothing
-                , currentPath = model.path
-                , currentContent = model.content
-                , newPath = path
-                }
+            ( { model
+                | loading = True
+                , errorMessage = Nothing
+                , typeHint = Nothing
+              }
+            , fetchResource model.typeHint path
+            )
 
-        Navigate route ->
-            ( model, Navigation.newUrl route )
+        Navigate entry ->
+            case entry of
+                File metadata ->
+                    ( { model | typeHint = Just Api.NoteResource }
+                    , Navigation.newUrl metadata.pathLower
+                    )
+
+                Folder metadata ->
+                    ( { model | typeHint = Just Api.DirectoryResource }
+                    , Navigation.newUrl metadata.pathLower
+                    )
 
         NavigateBack ->
-            ( model, Navigation.back 1 )
+            ( { model | typeHint = Just Api.DirectoryResource }
+            , Navigation.back 1
+            )
 
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
@@ -268,17 +257,17 @@ viewDirectory entries =
 viewEntry : Entry -> Html Msg
 viewEntry entry =
     let
-        ( title, onClick, icon ) =
+        ( title, icon ) =
             case entry of
                 Folder metadata ->
-                    ( metadata.name, Navigate metadata.pathLower, "folder" )
+                    ( metadata.name, "folder" )
 
                 File metadata ->
-                    ( metadata.name, Navigate metadata.pathLower, "insert_drive_file" )
+                    ( metadata.name, "insert_drive_file" )
     in
     H.a
         [ HA.class "collection-item"
-        , HE.onClick onClick
+        , HE.onClick (Navigate entry)
         ]
         [ H.i [ HA.class "material-icons" ] [ H.text icon ]
         , H.text title
