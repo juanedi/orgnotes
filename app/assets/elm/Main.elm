@@ -33,8 +33,6 @@ type Msg
     | NavigateBack
     | DismissError
     | ResourceFetchSucceeded Path Api.Resource
-    | DirectoryFetchSucceeded Path (List Entry)
-    | FileFetchSucceeded Path String
     | FetchFailed
 
 
@@ -76,17 +74,15 @@ update msg model =
             , fetchResource model.typeHint path
             )
 
-        Navigate entry ->
-            case entry of
-                File metadata ->
-                    ( { model | typeHint = Just Api.NoteResource }
-                    , Navigation.newUrl metadata.pathLower
-                    )
+        Navigate (File metadata) ->
+            ( { model | typeHint = Just Api.NoteResource }
+            , Navigation.newUrl metadata.pathLower
+            )
 
-                Folder metadata ->
-                    ( { model | typeHint = Just Api.DirectoryResource }
-                    , Navigation.newUrl metadata.pathLower
-                    )
+        Navigate (Folder metadata) ->
+            ( { model | typeHint = Just Api.DirectoryResource }
+            , Navigation.newUrl metadata.pathLower
+            )
 
         NavigateBack ->
             ( { model | typeHint = Just Api.DirectoryResource }
@@ -97,16 +93,22 @@ update msg model =
             ( { model | errorMessage = Nothing }, Cmd.none )
 
         ResourceFetchSucceeded path (Api.Note content) ->
-            noteFetched path content model
+            ( { model
+                | path = path
+                , loading = False
+                , content = FileContent path
+              }
+            , renderNote content
+            )
 
         ResourceFetchSucceeded path (Api.Directory entries) ->
-            directoryFetched path entries model
-
-        DirectoryFetchSucceeded path entries ->
-            directoryFetched path entries model
-
-        FileFetchSucceeded path content ->
-            noteFetched path content model
+            ( { model
+                | path = path
+                , loading = False
+                , content = DirectoryContent entries
+              }
+            , Cmd.none
+            )
 
         FetchFailed ->
             ( { model
@@ -120,28 +122,6 @@ update msg model =
 fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
 fetchResource typeHint path =
     Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
-
-
-noteFetched : Path -> String -> Model -> ( Model, Cmd Msg )
-noteFetched path content model =
-    ( { model
-        | path = path
-        , loading = False
-        , content = FileContent path
-      }
-    , renderNote content
-    )
-
-
-directoryFetched : Path -> List Entry -> Model -> ( Model, Cmd Msg )
-directoryFetched path entries model =
-    ( { model
-        | path = path
-        , loading = False
-        , content = DirectoryContent entries
-      }
-    , Cmd.none
-    )
 
 
 view : Model -> Html Msg
