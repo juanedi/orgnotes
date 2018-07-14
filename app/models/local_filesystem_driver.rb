@@ -6,6 +6,16 @@ class LocalFilesystemDriver
     @root_path = Pathname.new(base_path)
   end
 
+  def resource_type(path)
+    path = absolute_path(path)
+
+    if File.file?(path)
+      Entry::FILE
+    elsif Dir.exists?(path)
+      Entry::DIRECTORY
+    end
+  end
+
   def get_file(path)
     file_path = absolute_path(path)
 

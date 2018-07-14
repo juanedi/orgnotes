@@ -1,6 +1,27 @@
 require "rails_helper"
 
 RSpec.describe LocalFilesystemDriver do
+  describe "resource type" do
+    let(:driver) do
+      base_dir = setup_test_tree({ "foo" => {},
+                                   "bar.org" => "" })
+
+      LocalFilesystemDriver.new(base_dir)
+    end
+
+    it "identifies directories" do
+      expect(driver.resource_type("/foo")).to eq(Entry::DIRECTORY)
+    end
+
+    it "works for the root" do
+      expect(driver.resource_type("/")).to eq(Entry::DIRECTORY)
+    end
+
+    it "identifies files" do
+      expect(driver.resource_type("/bar.org")).to eq(Entry::FILE)
+    end
+  end
+
   describe "listing contents" do
     it "list subdirectories of root" do
       base_dir = setup_test_tree({ "foo" => {},
