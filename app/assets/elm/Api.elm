@@ -1,7 +1,7 @@
-module Api exposing (Entry(..), listDirectory, fetchFile)
+module Api exposing (Entry(..), fetchFile, listDirectory)
 
 import Http
-import Json.Decode as Decode exposing (field, list, dict, int, float, string, nullable)
+import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
 
 
 type Entry
@@ -30,8 +30,8 @@ listDirectory errorTagger okTagger path =
         decoder =
             Decode.list entryDecoder
     in
-        Http.get ("/api/dropbox" ++ path ++ "?cmd=ls") decoder
-            |> send errorTagger okTagger
+    Http.get ("/api/dropbox" ++ path ++ "?cmd=ls") decoder
+        |> send errorTagger okTagger
 
 
 fetchFile : (Http.Error -> msg) -> (String -> msg) -> String -> Cmd msg
@@ -40,6 +40,7 @@ fetchFile errorTagger okTagger path =
         |> send errorTagger okTagger
 
 
+entryDecoder : Decode.Decoder Entry
 entryDecoder =
     let
         rawEntryDecoder =
@@ -55,7 +56,7 @@ entryDecoder =
             else
                 File { name = name, pathLower = pathLower, pathDisplay = pathDisplay }
     in
-        Decode.map toEntry rawEntryDecoder
+    Decode.map toEntry rawEntryDecoder
 
 
 send : (Http.Error -> msg) -> (a -> msg) -> Http.Request a -> Cmd msg
