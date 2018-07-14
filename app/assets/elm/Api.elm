@@ -1,4 +1,4 @@
-module Api exposing (Entry(..), Resource(..), ResourceType(..), fetchResource)
+module Api exposing (Entry, Resource(..), ResourceType(..), fetchResource)
 
 import Http
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
@@ -14,20 +14,8 @@ type ResourceType
     | DirectoryResource
 
 
-type Entry
-    = File EntryMetadata
-    | Folder EntryMetadata
-
-
-type alias EntryMetadata =
-    { name : String
-    , pathLower : String
-    , pathDisplay : String
-    }
-
-
-type alias RawEntry =
-    { kind : String
+type alias Entry =
+    { type_ : ResourceType
     , name : String
     , pathLower : String
     , pathDisplay : String
@@ -89,21 +77,28 @@ directoryDecoder =
 
 entryDecoder : Decode.Decoder Entry
 entryDecoder =
-    let
-        rawEntryDecoder =
-            Decode.map4 RawEntry
-                (field "kind" string)
-                (field "name" string)
-                (field "path_lower" string)
-                (field "path_display" string)
+    Decode.map4 Entry
+        (field "kind" resourceTypeDecoder)
+        (field "name" string)
+        (field "path_lower" string)
+        (field "path_display" string)
 
-        toEntry { kind, name, pathLower, pathDisplay } =
-            if kind == "folder" then
-                Folder { name = name, pathLower = pathLower, pathDisplay = pathDisplay }
-            else
-                File { name = name, pathLower = pathLower, pathDisplay = pathDisplay }
-    in
-    Decode.map toEntry rawEntryDecoder
+
+resourceTypeDecoder : Decode.Decoder ResourceType
+resourceTypeDecoder =
+    Decode.andThen
+        (\typeLabel ->
+            case typeLabel of
+                "folder" ->
+                    Decode.succeed DirectoryResource
+
+                "file" ->
+                    Decode.succeed NoteResource
+
+                _ ->
+                    Decode.fail ("Unexpected entry type: " ++ typeLabel)
+        )
+        string
 
 
 send : (Http.Error -> msg) -> (a -> msg) -> Http.Request a -> Cmd msg

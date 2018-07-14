@@ -1,6 +1,6 @@
 port module Main exposing (..)
 
-import Api exposing (Entry(..))
+import Api exposing (Entry)
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -74,13 +74,8 @@ update msg model =
             , fetchResource model.typeHint path
             )
 
-        Navigate (File metadata) ->
-            ( { model | typeHint = Just Api.NoteResource }
-            , Navigation.newUrl metadata.pathLower
-            )
-
-        Navigate (Folder metadata) ->
-            ( { model | typeHint = Just Api.DirectoryResource }
+        Navigate metadata ->
+            ( { model | typeHint = Just metadata.type_ }
             , Navigation.newUrl metadata.pathLower
             )
 
@@ -236,19 +231,18 @@ viewDirectory entries =
 
 viewEntry : Entry -> Html Msg
 viewEntry entry =
-    let
-        ( title, icon ) =
-            case entry of
-                Folder metadata ->
-                    ( metadata.name, "folder" )
-
-                File metadata ->
-                    ( metadata.name, "insert_drive_file" )
-    in
     H.a
         [ HA.class "collection-item"
         , HE.onClick (Navigate entry)
         ]
-        [ H.i [ HA.class "material-icons" ] [ H.text icon ]
-        , H.text title
+        [ H.i [ HA.class "material-icons" ]
+            [ H.text <|
+                case entry.type_ of
+                    Api.DirectoryResource ->
+                        "folder"
+
+                    Api.NoteResource ->
+                        "insert_drive_file"
+            ]
+        , H.text entry.name
         ]
