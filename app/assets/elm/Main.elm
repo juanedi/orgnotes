@@ -6,7 +6,6 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Navigation
-import Route exposing (Route(..))
 
 
 type alias Path =
@@ -28,14 +27,14 @@ type DisplayModel
 
 
 type Msg
-    = UrlChange Route
-    | Navigate Route
+    = UrlChange Path
+    | Navigate Path
     | NavigateBack
     | DismissError
+    | ResourceFetchSucceeded Path Api.Resource
     | DirectoryFetchSucceeded Path (List Entry)
-    | DirectoryFetchFailed
     | FileFetchSucceeded Path String
-    | FileFetchFailed
+    | FetchFailed
 
 
 port renderNote : String -> Cmd msg
@@ -44,7 +43,7 @@ port renderNote : String -> Cmd msg
 main : Program Never Model Msg
 main =
     Navigation.program
-        (Route.parse >> UrlChange)
+        (.pathname >> UrlChange)
         { init = init
         , update = update
         , view = view
@@ -54,9 +53,20 @@ main =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    location
-        |> Route.parse
-        |> loadPage location.pathname Initializing
+    loadPage
+        { typeHint = Nothing
+        , currentPath = location.pathname
+        , currentContent = Initializing
+        , newPath = location.pathname
+        }
+
+
+type alias PageLoad =
+    { typeHint : Maybe Api.ResourceType
+    , currentPath : Path
+    , currentContent : DisplayModel
+    , newPath : Path
+    }
 
 
 {-| Begins loading a page.
@@ -66,34 +76,30 @@ arrives. This is so thag, when navigating to an item, the previous filename and
 contents are shown while loading.
 
 -}
-loadPage : Path -> DisplayModel -> Route -> ( Model, Cmd Msg )
-loadPage basePath baseContent route =
-    let
-        action =
-            case route of
-                DirectoryRoute path ->
-                    listDirectory path
-
-                FileRoute path ->
-                    fetchFile path
-    in
-    ( { path = basePath
+loadPage : PageLoad -> ( Model, Cmd Msg )
+loadPage pageLoad =
+    ( { path = pageLoad.currentPath
       , loading = True
       , errorMessage = Nothing
-      , content = baseContent
+      , content = pageLoad.currentContent
       }
-    , action
+    , fetchResource pageLoad.typeHint pageLoad.newPath
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UrlChange route ->
-            loadPage model.path model.content route
+        UrlChange path ->
+            loadPage
+                { typeHint = Nothing
+                , currentPath = model.path
+                , currentContent = model.content
+                , newPath = path
+                }
 
         Navigate route ->
-            ( model, Navigation.newUrl (Route.toPath route) )
+            ( model, Navigation.newUrl route )
 
         NavigateBack ->
             ( model, Navigation.back 1 )
@@ -101,49 +107,52 @@ update msg model =
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        DirectoryFetchFailed ->
-            ( { model
-                | loading = False
-                , errorMessage = Just "Couldn't fetch directory"
-              }
-            , Cmd.none
-            )
+        ResourceFetchSucceeded path (Api.Note content) ->
+            noteFetched path content model
+
+        ResourceFetchSucceeded path (Api.Directory entries) ->
+            directoryFetched path entries model
 
         DirectoryFetchSucceeded path entries ->
-            ( { model
-                | path = path
-                , loading = False
-                , content = DirectoryContent entries
-              }
-            , Cmd.none
-            )
-
-        FileFetchFailed ->
-            ( { model
-                | loading = False
-                , errorMessage = Just "Couldn't fetch file"
-              }
-            , Cmd.none
-            )
+            directoryFetched path entries model
 
         FileFetchSucceeded path content ->
+            noteFetched path content model
+
+        FetchFailed ->
             ( { model
-                | path = path
-                , loading = False
-                , content = FileContent path
+                | loading = False
+                , errorMessage = Just "Couldn't fetch the entry"
               }
-            , renderNote content
+            , Cmd.none
             )
 
 
-listDirectory : String -> Cmd Msg
-listDirectory path =
-    Api.listDirectory (always DirectoryFetchFailed) (DirectoryFetchSucceeded path) path
+fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
+fetchResource typeHint path =
+    Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
 
 
-fetchFile : String -> Cmd Msg
-fetchFile path =
-    Api.fetchFile (always FileFetchFailed) (FileFetchSucceeded path) path
+noteFetched : Path -> String -> Model -> ( Model, Cmd Msg )
+noteFetched path content model =
+    ( { model
+        | path = path
+        , loading = False
+        , content = FileContent path
+      }
+    , renderNote content
+    )
+
+
+directoryFetched : Path -> List Entry -> Model -> ( Model, Cmd Msg )
+directoryFetched path entries model =
+    ( { model
+        | path = path
+        , loading = False
+        , content = DirectoryContent entries
+      }
+    , Cmd.none
+    )
 
 
 view : Model -> Html Msg
@@ -262,10 +271,10 @@ viewEntry entry =
         ( title, onClick, icon ) =
             case entry of
                 Folder metadata ->
-                    ( metadata.name, Navigate (DirectoryRoute metadata.pathLower), "folder" )
+                    ( metadata.name, Navigate metadata.pathLower, "folder" )
 
                 File metadata ->
-                    ( metadata.name, Navigate (FileRoute metadata.pathLower), "insert_drive_file" )
+                    ( metadata.name, Navigate metadata.pathLower, "insert_drive_file" )
     in
     H.a
         [ HA.class "collection-item"

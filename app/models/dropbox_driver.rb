@@ -4,6 +4,17 @@ class DropboxDriver
     @client = DropboxApi::Client.new(oauth_token)
   end
 
+  def resource_type(path)
+    return Entry::DIRECTORY if path.empty? # dropbox API doesn't return metadata for the root folder
+
+    case @client.get_metadata(path)
+    when DropboxApi::Metadata::File
+      Entry::FILE
+    when DropboxApi::Metadata::Folder
+      Entry::DIRECTORY
+    end
+  end
+
   def get_file(path)
     @client.download(path) do |content|
       yield content

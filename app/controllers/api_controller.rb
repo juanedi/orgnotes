@@ -2,13 +2,17 @@ class ApiController < ApplicationController
 
   def list
     driver = initialize_driver
+    resource_type = request.headers['HTTP_ORGNOTES_ENTRY_TYPE'] || driver.resource_type(file_path)
 
-    if params[:cmd] == "cat"
+    case resource_type
+    when Entry::FILE
       driver.get_file(file_path) do |content|
-        render plain: content
+        render json: { type: "note", content: content }
       end
+    when Entry::DIRECTORY
+      render json: { type: "directory", entries: driver.list_directory(file_path) }
     else
-      render json: driver.list_directory(file_path)
+      head :bad_request
     end
   end
 
