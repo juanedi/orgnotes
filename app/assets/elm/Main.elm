@@ -152,48 +152,49 @@ fetchFile path =
 
 view : Model -> Html Msg
 view model =
+    H.div []
+        [ viewNav model.path
+        , viewProgressIndicator model.loading
+        , viewErrorMessage model.errorMessage
+        , viewContent model.content
+        ]
+
+
+viewNav : Path -> Html Msg
+viewNav path =
     let
-        loadingBar =
-            if model.loading then
-                H.div
-                    [ HA.id "app-progress", HA.class "progress" ]
-                    [ H.div [ HA.class "indeterminate" ] [] ]
-            else
-                H.div
-                    [ HA.id "app-progress" ]
-                    []
-
-        errorMessage =
-            viewErrorMessage model.errorMessage
-
         navButton =
-            case model.path of
+            case path of
                 "/" ->
                     H.i [ HA.class "material-icons" ] [ H.text "folder" ]
 
                 _ ->
                     H.i [ HE.onClick NavigateBack, HA.class "material-icons" ] [ H.text "arrow_back" ]
-
-        nav =
-            H.nav
-                [ HA.class "blue-grey" ]
-                [ H.div
-                    [ HA.class "nav-wrapper" ]
-                    [ H.div
-                        [ HA.class "nav-button left" ]
-                        [ navButton ]
-                    , H.span
-                        [ HA.class "nav-path" ]
-                        [ H.text model.path ]
-                    ]
-                ]
     in
-    H.div []
-        [ nav
-        , loadingBar
-        , errorMessage
-        , viewContent model.content
+    H.nav
+        [ HA.class "blue-grey" ]
+        [ H.div
+            [ HA.class "nav-wrapper" ]
+            [ H.div
+                [ HA.class "nav-button left" ]
+                [ navButton ]
+            , H.span
+                [ HA.class "nav-path" ]
+                [ H.text path ]
+            ]
         ]
+
+
+viewProgressIndicator : Bool -> Html Msg
+viewProgressIndicator loading =
+    if loading then
+        H.div
+            [ HA.id "app-progress", HA.class "progress" ]
+            [ H.div [ HA.class "indeterminate" ] [] ]
+    else
+        H.div
+            [ HA.id "app-progress" ]
+            []
 
 
 viewContent : DisplayModel -> Html Msg
