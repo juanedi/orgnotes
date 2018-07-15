@@ -17,7 +17,8 @@ class DropboxDriver
 
   def get_file(path)
     @client.download(path) do |content|
-      yield content
+      # sometimes a note's contents are wrongly interpreted as being ASCII
+      yield content.force_encoding(Encoding::UTF_8)
     end
   end
 
