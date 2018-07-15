@@ -33,10 +33,10 @@ type Msg
     | Navigate Api.Entry
     | NavigateBack
     | DismissError
-    | ResourceFetchSucceeded Path Api.Resource
-    | FetchFailed
+    | RemoteFetchDone Path Api.Resource
+    | RemoteFetchFailed
     | LocalFetchFailed
-    | LocalFetchSucceeded { path : String, content : String }
+    | LocalFetchDone { path : String, content : String }
 
 
 main : Program Never Model Msg
@@ -56,7 +56,7 @@ subscriptions _ =
         (\response ->
             case response of
                 Port.FetchDone note ->
-                    LocalFetchSucceeded note
+                    LocalFetchDone note
 
                 Port.FetchFailed ->
                     LocalFetchFailed
@@ -100,7 +100,7 @@ update msg model =
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        ResourceFetchSucceeded path (Api.Note content) ->
+        RemoteFetchDone path (Api.Note content) ->
             ( { model
                 | path = path
                 , loading = False
@@ -108,11 +108,11 @@ update msg model =
               }
             , Cmd.batch
                 [ Port.send (Render content)
-                , Port.send (Store path content)
+                , Port.send (Store { path = path, content = content })
                 ]
             )
 
-        ResourceFetchSucceeded path (Api.Directory entries) ->
+        RemoteFetchDone path (Api.Directory entries) ->
             ( { model
                 | path = path
                 , loading = False
@@ -121,7 +121,7 @@ update msg model =
             , Cmd.none
             )
 
-        FetchFailed ->
+        RemoteFetchFailed ->
             ( { model
                 | loading = False
                 , errorMessage = Just "Couldn't fetch the entry"
@@ -132,14 +132,14 @@ update msg model =
         LocalFetchFailed ->
             ( model, Cmd.none )
 
-        LocalFetchSucceeded { path, content } ->
+        LocalFetchDone { path, content } ->
             ( model, Cmd.none )
 
 
 fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
 fetchResource typeHint path =
     Cmd.batch
-        [ Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
+        [ Api.fetchResource (always RemoteFetchFailed) (RemoteFetchDone path) typeHint path
         , Port.send (Fetch path)
         ]
 
