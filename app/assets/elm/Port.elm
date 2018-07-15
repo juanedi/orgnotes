@@ -29,8 +29,12 @@ encodeRequest request =
         Store path contents ->
             Encode.object
                 [ ( "type", Encode.string "store" )
-                , ( "path", Encode.string path )
-                , ( "path", Encode.string contents )
+                , ( "note"
+                  , Encode.object
+                        [ ( "path", Encode.string path )
+                        , ( "content", Encode.string contents )
+                        ]
+                  )
                 ]
 
         Fetch path ->

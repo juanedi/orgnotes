@@ -17,9 +17,60 @@ function renderNote(request) {
   });
 }
 
+function initializeDb() {
+  return new Promise(function(resolve, reject) {
+    if (!('indexedDB' in window)) {
+      reject(Error("This browser doesn't support IndexedDB"));
+      return;
+    }
+
+    var openRequest = window.indexedDB.open('orgnotes-db1', 1);
+
+    openRequest.onupgradeneeded = function() {
+      if (!this.result.objectStoreNames.contains('notes')) {
+        this.result.createObjectStore('notes', { keyPath: 'path' });;
+      }
+    };
+
+    openRequest.onsuccess = function() {
+      resolve(this.result);
+    };
+
+    openRequest.onerror = function(error) {
+      reject(error);
+    };
+  });
+}
+
+function storeNote(request, db) {
+  console.log(request.note.path);
+  var tx = db.transaction("notes", "readwrite");
+  var store = tx.objectStore("notes");
+
+  store.put(request.note);
+}
+
+function fetchNote(request, db) {
+  var tx = db.transaction("notes", "readonly");
+  var store = tx.objectStore("notes");
+
+  return new Promise(function(resolve, reject) {
+    var getRequest = store.get(request.path);
+
+    getRequest.onsuccess = function(e) {
+      resolve(e.target.result);
+    };
+
+    getRequest.onerror = function(error) {
+      reject(error);
+    };
+  })
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   var node = document.getElementById('elm');
   var app = Elm.Main.fullscreen();
+  var dbSetup = initializeDb();
 
   app.ports.sendRequest.subscribe(function(request) {
     switch(request.type) {
@@ -27,10 +78,16 @@ document.addEventListener("DOMContentLoaded", function() {
       renderNote(request);
       break;
     case "store":
-      console.log("TODO: store note's contents");
+      dbSetup.then(function(db) {
+        storeNote(request, db);
+      });
       break;
     case "fetch":
-      console.log("TODO: fetch note from local db");
+      dbSetup.then(function(db) {
+        storeNote(request, db);
+      }).then(function(note) {
+        console.log("local version of note", note);
+      });
       break;
     default:
       console.err("Unexpected request", request)
