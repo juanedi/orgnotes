@@ -1,6 +1,13 @@
-port module Port exposing (Request(..), send)
+port module Port exposing (Request(..), Response(..), responses, send)
 
+import Json.Decode as Decode
 import Json.Encode as Encode
+
+
+port toJs : Encode.Value -> Cmd msg
+
+
+port fromJs : (Encode.Value -> msg) -> Sub msg
 
 
 type Request
@@ -9,12 +16,33 @@ type Request
     | Fetch String
 
 
-port sendRequest : Encode.Value -> Cmd msg
+type Response
+    = FetchDone Note
+    | FetchFailed
+
+
+type alias Note =
+    { path : String
+    , content : String
+    }
 
 
 send : Request -> Cmd msg
 send =
-    encodeRequest >> sendRequest
+    encodeRequest >> toJs
+
+
+responses : (Response -> msg) -> Sub msg
+responses toMsg =
+    fromJs
+        (\value ->
+            case Decode.decodeValue decodeResponse value of
+                Ok note ->
+                    toMsg (FetchDone note)
+
+                Err _ ->
+                    toMsg FetchFailed
+        )
 
 
 encodeRequest : Request -> Encode.Value
@@ -42,3 +70,10 @@ encodeRequest request =
                 [ ( "type", Encode.string "fetch" )
                 , ( "path", Encode.string path )
                 ]
+
+
+decodeResponse : Decode.Decoder Note
+decodeResponse =
+    Decode.map2 Note
+        (Decode.field "path" Decode.string)
+        (Decode.field "content" Decode.string)

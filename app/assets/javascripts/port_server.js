@@ -43,7 +43,6 @@ function initializeDb() {
 }
 
 function storeNote(request, db) {
-  console.log(request.note.path);
   var tx = db.transaction("notes", "readwrite");
   var store = tx.objectStore("notes");
 
@@ -64,15 +63,16 @@ function fetchNote(request, db) {
     getRequest.onerror = function(error) {
       reject(error);
     };
-  })
+  });
 }
 
 document.addEventListener("DOMContentLoaded", function() {
   var node = document.getElementById('elm');
   var app = Elm.Main.fullscreen();
   var dbSetup = initializeDb();
+  var send = app.ports.fromJs.send;
 
-  app.ports.sendRequest.subscribe(function(request) {
+  app.ports.toJs.subscribe(function(request) {
     switch(request.type) {
     case "render":
       renderNote(request);
@@ -84,13 +84,13 @@ document.addEventListener("DOMContentLoaded", function() {
       break;
     case "fetch":
       dbSetup.then(function(db) {
-        storeNote(request, db);
+        return fetchNote(request, db);
       }).then(function(note) {
-        console.log("local version of note", note);
+        send(note);
       });
       break;
     default:
-      console.err("Unexpected request", request)
+      console.err("Unexpected request", request);
     }
   });
 });

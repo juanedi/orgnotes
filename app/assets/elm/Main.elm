@@ -35,6 +35,8 @@ type Msg
     | DismissError
     | ResourceFetchSucceeded Path Api.Resource
     | FetchFailed
+    | LocalFetchFailed
+    | LocalFetchSucceeded { path : String, content : String }
 
 
 main : Program Never Model Msg
@@ -44,8 +46,21 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \model -> Sub.none
+        , subscriptions = subscriptions
         }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Port.responses
+        (\response ->
+            case response of
+                Port.FetchDone note ->
+                    LocalFetchSucceeded note
+
+                Port.FetchFailed ->
+                    LocalFetchFailed
+        )
 
 
 init : Navigation.Location -> ( Model, Cmd Msg )
@@ -91,7 +106,10 @@ update msg model =
                 , loading = False
                 , content = FileContent path
               }
-            , Port.send (Render content)
+            , Cmd.batch
+                [ Port.send (Render content)
+                , Port.send (Store path content)
+                ]
             )
 
         ResourceFetchSucceeded path (Api.Directory entries) ->
@@ -111,10 +129,19 @@ update msg model =
             , Cmd.none
             )
 
+        LocalFetchFailed ->
+            ( model, Cmd.none )
+
+        LocalFetchSucceeded { path, content } ->
+            ( model, Cmd.none )
+
 
 fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
 fetchResource typeHint path =
-    Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
+    Cmd.batch
+        [ Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
+        , Port.send (Fetch path)
+        ]
 
 
 view : Model -> Html Msg
