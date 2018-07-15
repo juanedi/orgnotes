@@ -1,11 +1,12 @@
 module Api exposing (Entry, Resource(..), ResourceType(..), fetchResource)
 
+import Data
 import Http
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
 
 
 type Resource
-    = Note String
+    = Note Data.Note
     | Directory (List Entry)
 
 
@@ -67,7 +68,10 @@ resourceDecoder =
 
 noteDecoder : Decode.Decoder Resource
 noteDecoder =
-    Decode.map Note (field "content" string)
+    Decode.map Note <|
+        Decode.map2 Data.Note
+            (field "path" string)
+            (field "content" string)
 
 
 directoryDecoder : Decode.Decoder Resource

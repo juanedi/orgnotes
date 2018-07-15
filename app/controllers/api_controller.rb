@@ -7,10 +7,18 @@ class ApiController < ApplicationController
     case resource_type
     when Entry::FILE
       driver.get_file(file_path) do |content|
-        render json: { type: "note", content: content }
+        render json: {
+                 type: "note",
+                 path: params[:path],
+                 content: content
+               }
       end
     when Entry::DIRECTORY
-      render json: { type: "directory", entries: driver.list_directory(file_path) }
+      render json: {
+               type: "directory",
+               path: params[:path],
+               entries: driver.list_directory(file_path)
+             }
     else
       head :bad_request
     end

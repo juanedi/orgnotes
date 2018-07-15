@@ -100,15 +100,15 @@ update msg model =
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        RemoteFetchDone path (Api.Note content) ->
+        RemoteFetchDone path (Api.Note note) ->
             ( { model
                 | path = path
                 , loading = False
                 , content = FileContent path
               }
             , Cmd.batch
-                [ Port.send (Render content)
-                , Port.send (Store { path = path, content = content })
+                [ Port.send (Render note.content)
+                , Port.send (Store note)
                 ]
             )
 
