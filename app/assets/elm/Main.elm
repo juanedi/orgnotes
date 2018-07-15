@@ -1,4 +1,4 @@
-port module Main exposing (..)
+module Main exposing (..)
 
 import Api exposing (Entry)
 import Html as H exposing (Html)
@@ -6,6 +6,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Navigation
+import Port exposing (Request(..))
 
 
 type alias Path =
@@ -34,9 +35,6 @@ type Msg
     | DismissError
     | ResourceFetchSucceeded Path Api.Resource
     | FetchFailed
-
-
-port renderNote : String -> Cmd msg
 
 
 main : Program Never Model Msg
@@ -93,7 +91,7 @@ update msg model =
                 , loading = False
                 , content = FileContent path
               }
-            , renderNote content
+            , Port.send (Render content)
             )
 
         ResourceFetchSucceeded path (Api.Directory entries) ->
