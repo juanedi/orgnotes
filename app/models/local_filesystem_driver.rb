@@ -41,7 +41,7 @@ class LocalFilesystemDriver
       entry_relative_path = relative_path(entry_absolute_path)
 
       if File.directory?(entry_absolute_path)
-        result.push(entry_json("directory", entry_name, entry_relative_path))
+        result.push(entry_json("folder", entry_name, entry_relative_path))
       elsif entry_name.ends_with? "org"
         result.push(entry_json("file", entry_name, entry_relative_path))
       else

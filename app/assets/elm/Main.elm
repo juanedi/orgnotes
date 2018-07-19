@@ -25,7 +25,7 @@ type alias Model =
 
 type DisplayModel
     = Initializing
-    | DirectoryContent (List Entry)
+    | DirectoryContent Data.Directory
     | FileContent String
 
 
@@ -37,7 +37,7 @@ type Msg
     | RemoteFetchDone Path Resource
     | RemoteFetchFailed
     | LocalFetchFailed
-    | LocalFetchDone { path : String, content : String }
+    | LocalFetchDone Resource
 
 
 main : Program Never Model Msg
@@ -56,8 +56,8 @@ subscriptions _ =
     Port.responses
         (\response ->
             case response of
-                Port.FetchDone note ->
-                    LocalFetchDone note
+                Port.FetchDone resource ->
+                    LocalFetchDone resource
 
                 Port.FetchFailed ->
                     LocalFetchFailed
@@ -101,26 +101,29 @@ update msg model =
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        RemoteFetchDone path (Data.NoteResource note) ->
-            ( { model
-                | path = path
-                , loading = False
-                , content = FileContent path
-              }
-            , Cmd.batch
-                [ Port.send (Render note.content)
-                , Port.send (Store note)
-                ]
-            )
+        RemoteFetchDone path resource ->
+            -- TODO: DRY this up
+            case resource of
+                Data.NoteResource note ->
+                    ( { model
+                        | path = path
+                        , loading = False
+                        , content = FileContent path
+                      }
+                    , Cmd.batch
+                        [ Port.send (Render note.content)
+                        , Port.send (Store resource)
+                        ]
+                    )
 
-        RemoteFetchDone path (Data.DirectoryResource entries) ->
-            ( { model
-                | path = path
-                , loading = False
-                , content = DirectoryContent entries
-              }
-            , Cmd.none
-            )
+                Data.DirectoryResource directory ->
+                    ( { model
+                        | path = path
+                        , loading = False
+                        , content = DirectoryContent directory
+                      }
+                    , Port.send (Store resource)
+                    )
 
         RemoteFetchFailed ->
             ( { model
@@ -133,7 +136,7 @@ update msg model =
         LocalFetchFailed ->
             ( model, Cmd.none )
 
-        LocalFetchDone { path, content } ->
+        LocalFetchDone resource ->
             ( model, Cmd.none )
 
 
@@ -205,9 +208,9 @@ viewContent content =
                   )
                 ]
 
-            DirectoryContent entries ->
+            DirectoryContent directory ->
                 [ ( "directory-content"
-                  , viewDirectory entries
+                  , viewDirectory directory
                   )
                 ]
 
@@ -236,9 +239,9 @@ viewErrorMessage maybeError =
                 ]
 
 
-viewDirectory : List Entry -> Html Msg
-viewDirectory entries =
-    if List.isEmpty entries then
+viewDirectory : Data.Directory -> Html Msg
+viewDirectory directory =
+    if List.isEmpty directory.entries then
         H.div
             [ HA.class "empty-directory valign-wrapper center-align" ]
             [ H.div
@@ -252,7 +255,7 @@ viewDirectory entries =
             [ HA.id "directory-entries"
             , HA.class "collection"
             ]
-            (List.map viewEntry entries)
+            (List.map viewEntry directory.entries)
 
 
 viewEntry : Entry -> Html Msg

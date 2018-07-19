@@ -9,14 +9,14 @@ class ApiController < ApplicationController
       driver.get_file(file_path) do |content|
         render json: {
                  type: "note",
-                 path: params[:path],
+                 path: file_path,
                  content: content
                }
       end
     when Entry::DIRECTORY
       render json: {
                type: "directory",
-               path: params[:path],
+               path: file_path,
                entries: driver.list_directory(file_path)
              }
     else
@@ -28,7 +28,8 @@ class ApiController < ApplicationController
     if params[:path]
       path = "/#{params[:path]}"
     else
-      path = ""
+      # TODO: may need to fix this for dropbox driver
+      path = "/"
     end
 
     if params[:format]

@@ -1,6 +1,7 @@
 port module Port exposing (Request(..), Response(..), responses, send)
 
-import Data exposing (Note)
+import Api
+import Data exposing (Resource(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
 
@@ -13,12 +14,12 @@ port fromJs : (Encode.Value -> msg) -> Sub msg
 
 type Request
     = Render String
-    | Store Note
+    | Store Resource
     | Fetch String
 
 
 type Response
-    = FetchDone Note
+    = FetchDone Resource
     | FetchFailed
 
 
@@ -31,9 +32,9 @@ responses : (Response -> msg) -> Sub msg
 responses toMsg =
     fromJs
         (\value ->
-            case Decode.decodeValue decodeNote value of
-                Ok note ->
-                    toMsg (FetchDone note)
+            case Decode.decodeValue Data.resourceDecoder value of
+                Ok resource ->
+                    toMsg (FetchDone resource)
 
                 Err _ ->
                     toMsg FetchFailed
@@ -49,10 +50,10 @@ encodeRequest request =
                 , ( "content", Encode.string contents )
                 ]
 
-        Store note ->
+        Store resource ->
             Encode.object
                 [ ( "type", Encode.string "store" )
-                , ( "note", encodeNote note )
+                , ( "resource", Data.encodeResource resource )
                 ]
 
         Fetch path ->
@@ -60,18 +61,3 @@ encodeRequest request =
                 [ ( "type", Encode.string "fetch" )
                 , ( "path", Encode.string path )
                 ]
-
-
-encodeNote : Note -> Encode.Value
-encodeNote note =
-    Encode.object
-        [ ( "path", Encode.string note.path )
-        , ( "content", Encode.string note.path )
-        ]
-
-
-decodeNote : Decode.Decoder Note
-decodeNote =
-    Decode.map2 Note
-        (Decode.field "path" Decode.string)
-        (Decode.field "content" Decode.string)

@@ -45,14 +45,14 @@
     });
   }
 
-  function storeNote(request, db) {
+  function storeResource(request, db) {
     var tx = db.transaction(RESOURCES_STORE, "readwrite");
     var store = tx.objectStore(RESOURCES_STORE);
 
-    store.put(request.note);
+    store.put(request.resource);
   }
 
-  function fetchNote(request, db) {
+  function fetchResource(request, db) {
     var tx = db.transaction(RESOURCES_STORE, "readonly");
     var store = tx.objectStore(RESOURCES_STORE);
 
@@ -82,12 +82,12 @@
         break;
       case "store":
         dbSetup.then(function(db) {
-          storeNote(request, db);
+          storeResource(request, db);
         });
         break;
       case "fetch":
         dbSetup.then(function(db) {
-          return fetchNote(request, db);
+          return fetchResource(request, db);
         }).then(function(note) {
           send(note);
         });
