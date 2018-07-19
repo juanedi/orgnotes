@@ -1,29 +1,11 @@
-module Api exposing (Entry, Resource(..), ResourceType(..), fetchResource)
+module Api exposing (fetchResource)
 
-import Data
+import Data exposing (Entry, EntryType(..), Resource(..))
 import Http
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
 
 
-type Resource
-    = Note Data.Note
-    | Directory (List Entry)
-
-
-type ResourceType
-    = NoteResource
-    | DirectoryResource
-
-
-type alias Entry =
-    { type_ : ResourceType
-    , name : String
-    , pathLower : String
-    , pathDisplay : String
-    }
-
-
-fetchResource : (Http.Error -> msg) -> (Resource -> msg) -> Maybe ResourceType -> String -> Cmd msg
+fetchResource : (Http.Error -> msg) -> (Resource -> msg) -> Maybe EntryType -> String -> Cmd msg
 fetchResource errorTagger okTagger typeHint path =
     let
         headers =
@@ -31,10 +13,10 @@ fetchResource errorTagger okTagger typeHint path =
                 Nothing ->
                     []
 
-                Just NoteResource ->
+                Just NoteEntry ->
                     [ Http.header "ORGNOTES_ENTRY_TYPE" "file" ]
 
-                Just DirectoryResource ->
+                Just DirectoryEntry ->
                     [ Http.header "ORGNOTES_ENTRY_TYPE" "directory" ]
     in
     Http.request
@@ -68,7 +50,7 @@ resourceDecoder =
 
 noteDecoder : Decode.Decoder Resource
 noteDecoder =
-    Decode.map Note <|
+    Decode.map NoteResource <|
         Decode.map2 Data.Note
             (field "path" string)
             (field "content" string)
@@ -76,7 +58,7 @@ noteDecoder =
 
 directoryDecoder : Decode.Decoder Resource
 directoryDecoder =
-    Decode.map Directory (field "entries" (Decode.list entryDecoder))
+    Decode.map DirectoryResource (field "entries" (Decode.list entryDecoder))
 
 
 entryDecoder : Decode.Decoder Entry
@@ -88,16 +70,16 @@ entryDecoder =
         (field "path_display" string)
 
 
-resourceTypeDecoder : Decode.Decoder ResourceType
+resourceTypeDecoder : Decode.Decoder EntryType
 resourceTypeDecoder =
     Decode.andThen
         (\typeLabel ->
             case typeLabel of
                 "folder" ->
-                    Decode.succeed DirectoryResource
+                    Decode.succeed DirectoryEntry
 
                 "file" ->
-                    Decode.succeed NoteResource
+                    Decode.succeed NoteEntry
 
                 _ ->
                     Decode.fail ("Unexpected entry type: " ++ typeLabel)

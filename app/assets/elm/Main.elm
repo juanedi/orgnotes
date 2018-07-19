@@ -1,6 +1,7 @@
 module Main exposing (..)
 
-import Api exposing (Entry)
+import Api
+import Data exposing (Entry, EntryType(..), Resource)
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -18,7 +19,7 @@ type alias Model =
     , loading : Bool
     , errorMessage : Maybe String
     , content : DisplayModel
-    , typeHint : Maybe Api.ResourceType
+    , typeHint : Maybe EntryType
     }
 
 
@@ -30,10 +31,10 @@ type DisplayModel
 
 type Msg
     = UrlChange Path
-    | Navigate Api.Entry
+    | Navigate Entry
     | NavigateBack
     | DismissError
-    | RemoteFetchDone Path Api.Resource
+    | RemoteFetchDone Path Resource
     | RemoteFetchFailed
     | LocalFetchFailed
     | LocalFetchDone { path : String, content : String }
@@ -93,14 +94,14 @@ update msg model =
             )
 
         NavigateBack ->
-            ( { model | typeHint = Just Api.DirectoryResource }
+            ( { model | typeHint = Just DirectoryEntry }
             , Navigation.back 1
             )
 
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        RemoteFetchDone path (Api.Note note) ->
+        RemoteFetchDone path (Data.NoteResource note) ->
             ( { model
                 | path = path
                 , loading = False
@@ -112,7 +113,7 @@ update msg model =
                 ]
             )
 
-        RemoteFetchDone path (Api.Directory entries) ->
+        RemoteFetchDone path (Data.DirectoryResource entries) ->
             ( { model
                 | path = path
                 , loading = False
@@ -136,7 +137,7 @@ update msg model =
             ( model, Cmd.none )
 
 
-fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
+fetchResource : Maybe EntryType -> String -> Cmd Msg
 fetchResource typeHint path =
     Cmd.batch
         [ Api.fetchResource (always RemoteFetchFailed) (RemoteFetchDone path) typeHint path
@@ -263,10 +264,10 @@ viewEntry entry =
         [ H.i [ HA.class "material-icons" ]
             [ H.text <|
                 case entry.type_ of
-                    Api.DirectoryResource ->
+                    DirectoryEntry ->
                         "folder"
 
-                    Api.NoteResource ->
+                    NoteEntry ->
                         "insert_drive_file"
             ]
         , H.text entry.name
