@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Api
-import Data exposing (Entry, EntryType(..), Resource)
+import Data exposing (Entry, EntryType(..), Resource(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
@@ -16,7 +16,6 @@ type alias Path =
 
 type alias Model =
     { path : Path
-    , loading : Bool
     , errorMessage : Maybe String
     , content : DisplayModel
     , typeHint : Maybe EntryType
@@ -25,8 +24,8 @@ type alias Model =
 
 type DisplayModel
     = Initializing
-    | DirectoryContent Data.Directory
-    | FileContent String
+    | Displaying Resource
+    | LoadingOther Resource
 
 
 type Msg
@@ -67,7 +66,6 @@ subscriptions _ =
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     ( { path = location.pathname
-      , loading = True
       , errorMessage = Nothing
       , content = Initializing
       , typeHint = Nothing
@@ -81,9 +79,8 @@ update msg model =
     case msg of
         UrlChange path ->
             ( { model
-                | loading = True
-                , errorMessage = Nothing
-                , typeHint = Nothing
+                | typeHint = Nothing
+                , content = setLoading model.content
               }
             , fetchResource model.typeHint path
             )
@@ -107,8 +104,7 @@ update msg model =
                 Data.NoteResource note ->
                     ( { model
                         | path = note.path
-                        , loading = False
-                        , content = FileContent note.path
+                        , content = Displaying resource
                       }
                     , Cmd.batch
                         [ Port.send (Render note.content)
@@ -119,15 +115,14 @@ update msg model =
                 Data.DirectoryResource directory ->
                     ( { model
                         | path = directory.path
-                        , loading = False
-                        , content = DirectoryContent directory
+                        , content = Displaying resource
                       }
                     , Port.send (Store resource)
                     )
 
         RemoteFetchFailed ->
             ( { model
-                | loading = False
+                | content = cancelLoading model.content
                 , errorMessage = Just "Couldn't fetch the entry"
               }
             , Cmd.none
@@ -138,6 +133,45 @@ update msg model =
 
         LocalFetchDone resource ->
             ( model, Cmd.none )
+
+
+setLoading : DisplayModel -> DisplayModel
+setLoading model =
+    case model of
+        Initializing ->
+            model
+
+        Displaying resource ->
+            LoadingOther resource
+
+        LoadingOther resource ->
+            model
+
+
+cancelLoading : DisplayModel -> DisplayModel
+cancelLoading model =
+    case model of
+        Initializing ->
+            model
+
+        Displaying resource ->
+            model
+
+        LoadingOther resource ->
+            Displaying resource
+
+
+isLoading : DisplayModel -> Bool
+isLoading model =
+    case model of
+        Initializing ->
+            True
+
+        Displaying resource ->
+            False
+
+        LoadingOther resource ->
+            True
 
 
 fetchResource : Maybe EntryType -> String -> Cmd Msg
@@ -152,7 +186,7 @@ view : Model -> Html Msg
 view model =
     H.div []
         [ viewNav model.path
-        , viewProgressIndicator model.loading
+        , viewProgressIndicator (isLoading model.content)
         , viewErrorMessage model.errorMessage
         , viewContent model.content
         ]
@@ -202,17 +236,27 @@ viewContent content =
             Initializing ->
                 []
 
-            FileContent path ->
-                [ ( "note-content" ++ toString path
-                  , H.div [ HA.id "note-content" ] []
-                  )
-                ]
+            Displaying resource ->
+                viewResource resource
 
-            DirectoryContent directory ->
-                [ ( "directory-content"
-                  , viewDirectory directory
-                  )
-                ]
+            LoadingOther resource ->
+                viewResource resource
+
+
+viewResource : Resource -> List ( String, Html Msg )
+viewResource resource =
+    case resource of
+        NoteResource note ->
+            [ ( "note-content" ++ toString note.path
+              , H.div [ HA.id "note-content" ] []
+              )
+            ]
+
+        DirectoryResource directory ->
+            [ ( "directory-content"
+              , viewDirectory directory
+              )
+            ]
 
 
 viewErrorMessage : Maybe String -> Html Msg
