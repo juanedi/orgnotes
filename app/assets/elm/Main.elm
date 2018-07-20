@@ -34,7 +34,7 @@ type Msg
     | Navigate Entry
     | NavigateBack
     | DismissError
-    | RemoteFetchDone Path Resource
+    | RemoteFetchDone Resource
     | RemoteFetchFailed
     | LocalFetchFailed
     | LocalFetchDone Resource
@@ -101,14 +101,14 @@ update msg model =
         DismissError ->
             ( { model | errorMessage = Nothing }, Cmd.none )
 
-        RemoteFetchDone path resource ->
+        RemoteFetchDone resource ->
             -- TODO: DRY this up
             case resource of
                 Data.NoteResource note ->
                     ( { model
-                        | path = path
+                        | path = note.path
                         , loading = False
-                        , content = FileContent path
+                        , content = FileContent note.path
                       }
                     , Cmd.batch
                         [ Port.send (Render note.content)
@@ -118,7 +118,7 @@ update msg model =
 
                 Data.DirectoryResource directory ->
                     ( { model
-                        | path = path
+                        | path = directory.path
                         , loading = False
                         , content = DirectoryContent directory
                       }
@@ -143,7 +143,7 @@ update msg model =
 fetchResource : Maybe EntryType -> String -> Cmd Msg
 fetchResource typeHint path =
     Cmd.batch
-        [ Api.fetchResource (always RemoteFetchFailed) (RemoteFetchDone path) typeHint path
+        [ Api.fetchResource (always RemoteFetchFailed) RemoteFetchDone typeHint path
         , Port.send (Fetch path)
         ]
 
