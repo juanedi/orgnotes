@@ -5,7 +5,8 @@ class DropboxDriver
   end
 
   def resource_type(path)
-    return Entry::DIRECTORY if path.empty? # dropbox API doesn't return metadata for the root folder
+    # dropbox API doesn't return metadata for the root folder
+    return Entry::DIRECTORY if path == "/"
 
     case @client.get_metadata(path)
     when DropboxApi::Metadata::File
@@ -23,6 +24,9 @@ class DropboxDriver
   end
 
   def list_directory(path)
+    # dropbox API wants "" instead of "/"
+    path = "" if path == "/"
+
     @client
       .list_folder(path)
       .entries
