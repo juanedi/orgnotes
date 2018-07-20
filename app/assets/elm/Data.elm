@@ -121,7 +121,7 @@ encodeNote note =
     Encode.object
         [ ( "type", Encode.string "note" )
         , ( "path", Encode.string note.path )
-        , ( "content", Encode.string note.path )
+        , ( "content", Encode.string note.content )
         ]
 
 
