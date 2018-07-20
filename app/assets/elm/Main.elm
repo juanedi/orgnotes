@@ -28,9 +28,9 @@ type ErrorState
 
 
 type DisplayModel
-    = Initializing String
+    = Initializing Path
     | Displaying (Cacheable Resource)
-    | LoadingOther String (Cacheable Resource)
+    | LoadingOther Path (Cacheable Resource)
 
 
 type Cacheable r
@@ -208,7 +208,7 @@ renderingEffects resource =
             []
 
 
-setLoading : String -> DisplayModel -> DisplayModel
+setLoading : Path -> DisplayModel -> DisplayModel
 setLoading newPath model =
     case model of
         Initializing _ ->
@@ -247,7 +247,7 @@ isLoading model =
             True
 
 
-currentPath : DisplayModel -> String
+currentPath : DisplayModel -> Path
 currentPath model =
     case model of
         Initializing path ->
@@ -260,7 +260,7 @@ currentPath model =
             Data.path (current resource)
 
 
-fetchResource : Maybe EntryType -> String -> Cmd Msg
+fetchResource : Maybe EntryType -> Path -> Cmd Msg
 fetchResource typeHint path =
     Cmd.batch
         [ Api.fetchResource (always RemoteFetchFailed) RemoteFetchDone typeHint path
