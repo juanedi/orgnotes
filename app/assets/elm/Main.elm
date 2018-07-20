@@ -30,7 +30,7 @@ type ErrorState
 type DisplayModel
     = Initializing String
     | Displaying (Cacheable Resource)
-    | LoadingOther (Cacheable Resource)
+    | LoadingOther String (Cacheable Resource)
 
 
 type Cacheable r
@@ -90,7 +90,7 @@ update msg model =
         UrlChange path ->
             ( { model
                 | typeHint = Nothing
-                , content = setLoading model.content
+                , content = setLoading path model.content
               }
             , fetchResource model.typeHint path
             )
@@ -113,7 +113,32 @@ update msg model =
 
         RemoteFetchDone resource ->
             ( { model
-                | content = Displaying (Fetched resource)
+                | content =
+                    case model.content of
+                        Initializing _ ->
+                            Displaying (Fetched resource)
+
+                        LoadingOther loadingPath _ ->
+                            -- if network is slow, we may have navigated to
+                            -- another local resource before the server's
+                            -- response arrives
+                            if loadingPath == Data.path resource then
+                                Displaying (Fetched resource)
+                            else
+                                model.content
+
+                        Displaying (Cached cachedResource) ->
+                            -- if network is slow, we may have navigated to
+                            -- another local resource before the server's
+                            -- response arrives
+                            if Data.path resource == Data.path cachedResource then
+                                Displaying (Fetched resource)
+                            else
+                                model.content
+
+                        Displaying (Fetched _) ->
+                            -- NOTE: should not happen
+                            model.content
               }
             , Cmd.batch (Port.send (Store resource) :: renderingEffects resource)
             )
@@ -125,18 +150,24 @@ update msg model =
                         Initializing _ ->
                             Displaying (Cached resource)
 
-                        LoadingOther _ ->
-                            Displaying (Cached resource)
+                        LoadingOther loadingPath _ ->
+                            -- if network is slow, we may have navigated to
+                            -- another local resource before the server's
+                            -- response arrives
+                            if loadingPath == Data.path resource then
+                                Displaying (Cached resource)
+                            else
+                                model.content
 
                         Displaying (Fetched _) ->
                             -- cache took longer than the real thing. the world is a strange place.
                             model.content
 
                         Displaying (Cached _) ->
-                            -- NOTE: could this happen?
+                            -- NOTE: should not happen
                             model.content
               }
-            , Cmd.none
+            , Cmd.batch (renderingEffects resource)
             )
 
         RemoteFetchFailed ->
@@ -177,16 +208,16 @@ renderingEffects resource =
             []
 
 
-setLoading : DisplayModel -> DisplayModel
-setLoading model =
+setLoading : String -> DisplayModel -> DisplayModel
+setLoading newPath model =
     case model of
         Initializing _ ->
             model
 
         Displaying resource ->
-            LoadingOther resource
+            LoadingOther newPath resource
 
-        LoadingOther resource ->
+        LoadingOther _ resource ->
             model
 
 
@@ -199,7 +230,7 @@ cancelLoading model =
         Displaying resource ->
             model
 
-        LoadingOther resource ->
+        LoadingOther _ resource ->
             Displaying resource
 
 
@@ -212,7 +243,7 @@ isLoading model =
         Displaying resource ->
             False
 
-        LoadingOther resource ->
+        LoadingOther _ resource ->
             True
 
 
@@ -225,7 +256,7 @@ currentPath model =
         Displaying resource ->
             Data.path (current resource)
 
-        LoadingOther resource ->
+        LoadingOther _ resource ->
             Data.path (current resource)
 
 
@@ -294,7 +325,7 @@ viewContent content =
             Displaying resource ->
                 viewResource (current resource)
 
-            LoadingOther resource ->
+            LoadingOther _ resource ->
                 viewResource (current resource)
 
 
