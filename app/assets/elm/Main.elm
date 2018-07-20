@@ -15,10 +15,16 @@ type alias Path =
 
 
 type alias Model =
-    { errorMessage : Maybe String
-    , content : DisplayModel
+    { content : DisplayModel
     , typeHint : Maybe EntryType
+    , errorState : ErrorState
     }
+
+
+type ErrorState
+    = Clear
+    | OnError String
+    | PermanentDismiss
 
 
 type DisplayModel
@@ -37,6 +43,7 @@ type Msg
     | Navigate Entry
     | NavigateBack
     | DismissError
+    | PermanentDismissError
     | RemoteFetchDone Resource
     | RemoteFetchFailed
     | LocalFetchFailed
@@ -69,9 +76,9 @@ subscriptions _ =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    ( { errorMessage = Nothing
-      , content = Initializing location.pathname
+    ( { content = Initializing location.pathname
       , typeHint = Nothing
+      , errorState = Clear
       }
     , fetchResource Nothing location.pathname
     )
@@ -99,7 +106,10 @@ update msg model =
             )
 
         DismissError ->
-            ( { model | errorMessage = Nothing }, Cmd.none )
+            ( { model | errorState = Clear }, Cmd.none )
+
+        PermanentDismissError ->
+            ( { model | errorState = PermanentDismiss }, Cmd.none )
 
         RemoteFetchDone resource ->
             ( { model
@@ -132,7 +142,13 @@ update msg model =
         RemoteFetchFailed ->
             ( { model
                 | content = cancelLoading model.content
-                , errorMessage = Just "Couldn't fetch the entry"
+                , errorState =
+                    case model.errorState of
+                        PermanentDismiss ->
+                            PermanentDismiss
+
+                        _ ->
+                            OnError "Couldn't fetch the entry"
               }
             , Cmd.none
             )
@@ -226,7 +242,7 @@ view model =
     H.div []
         [ viewNav (currentPath model.content)
         , viewProgressIndicator (isLoading model.content)
-        , viewErrorMessage model.errorMessage
+        , viewErrorMessage model.errorState
         , viewContent model.content
         ]
 
@@ -298,28 +314,33 @@ viewResource resource =
             ]
 
 
-viewErrorMessage : Maybe String -> Html Msg
-viewErrorMessage maybeError =
-    case maybeError of
-        Nothing ->
-            H.div [] []
-
-        Just msg ->
+viewErrorMessage : ErrorState -> Html Msg
+viewErrorMessage errorState =
+    case errorState of
+        OnError msg ->
             H.div
                 [ HA.id "error-message"
                 , HA.class "card blue-grey darken-1"
                 ]
                 [ H.div
                     [ HA.class "card-content white-text" ]
+                    -- TODO: if viewing a cached version, show a better error message
                     [ H.span [ HA.class "card-title" ] [ H.text msg ]
                     , H.p [] [ H.text "Sorry about that. Maybe reloading helps :-(" ]
                     ]
                 , H.div
                     [ HA.class "card-action" ]
                     [ H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
-                    , H.a [ HE.onClick DismissError ] [ H.text "Dismiss" ]
+                    , H.a [ HE.onClick DismissError ] [ H.text "Hide" ]
+                    , H.a [ HE.onClick PermanentDismissError ] [ H.text "Dismiss permanently" ]
                     ]
                 ]
+
+        Clear ->
+            H.div [] []
+
+        PermanentDismiss ->
+            H.div [] []
 
 
 viewDirectory : Data.Directory -> Html Msg
