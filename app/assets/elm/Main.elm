@@ -15,17 +15,21 @@ type alias Path =
 
 
 type alias Model =
-    { path : Path
-    , errorMessage : Maybe String
+    { errorMessage : Maybe String
     , content : DisplayModel
     , typeHint : Maybe EntryType
     }
 
 
 type DisplayModel
-    = Initializing
-    | Displaying Resource
-    | LoadingOther Resource
+    = Initializing String
+    | Displaying (Cacheable Resource)
+    | LoadingOther (Cacheable Resource)
+
+
+type Cacheable r
+    = Cached r
+    | Fetched r
 
 
 type Msg
@@ -65,9 +69,8 @@ subscriptions _ =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    ( { path = location.pathname
-      , errorMessage = Nothing
-      , content = Initializing
+    ( { errorMessage = Nothing
+      , content = Initializing location.pathname
       , typeHint = Nothing
       }
     , fetchResource Nothing location.pathname
@@ -99,26 +102,32 @@ update msg model =
             ( { model | errorMessage = Nothing }, Cmd.none )
 
         RemoteFetchDone resource ->
-            -- TODO: DRY this up
-            case resource of
-                Data.NoteResource note ->
-                    ( { model
-                        | path = note.path
-                        , content = Displaying resource
-                      }
-                    , Cmd.batch
-                        [ Port.send (Render note.content)
-                        , Port.send (Store resource)
-                        ]
-                    )
+            ( { model
+                | content = Displaying (Fetched resource)
+              }
+            , Cmd.batch (Port.send (Store resource) :: renderingEffects resource)
+            )
 
-                Data.DirectoryResource directory ->
-                    ( { model
-                        | path = directory.path
-                        , content = Displaying resource
-                      }
-                    , Port.send (Store resource)
-                    )
+        LocalFetchDone resource ->
+            ( { model
+                | content =
+                    case model.content of
+                        Initializing _ ->
+                            Displaying (Cached resource)
+
+                        LoadingOther _ ->
+                            Displaying (Cached resource)
+
+                        Displaying (Fetched _) ->
+                            -- cache took longer than the real thing. the world is a strange place.
+                            model.content
+
+                        Displaying (Cached _) ->
+                            -- NOTE: could this happen?
+                            model.content
+              }
+            , Cmd.none
+            )
 
         RemoteFetchFailed ->
             ( { model
@@ -131,14 +140,31 @@ update msg model =
         LocalFetchFailed ->
             ( model, Cmd.none )
 
-        LocalFetchDone resource ->
-            ( model, Cmd.none )
+
+current : Cacheable a -> a
+current cacheable =
+    case cacheable of
+        Cached a ->
+            a
+
+        Fetched a ->
+            a
+
+
+renderingEffects : Resource -> List (Cmd Msg)
+renderingEffects resource =
+    case resource of
+        Data.NoteResource note ->
+            [ Port.send (Render note.content) ]
+
+        Data.DirectoryResource _ ->
+            []
 
 
 setLoading : DisplayModel -> DisplayModel
 setLoading model =
     case model of
-        Initializing ->
+        Initializing _ ->
             model
 
         Displaying resource ->
@@ -151,7 +177,7 @@ setLoading model =
 cancelLoading : DisplayModel -> DisplayModel
 cancelLoading model =
     case model of
-        Initializing ->
+        Initializing _ ->
             model
 
         Displaying resource ->
@@ -164,7 +190,7 @@ cancelLoading model =
 isLoading : DisplayModel -> Bool
 isLoading model =
     case model of
-        Initializing ->
+        Initializing _ ->
             True
 
         Displaying resource ->
@@ -172,6 +198,19 @@ isLoading model =
 
         LoadingOther resource ->
             True
+
+
+currentPath : DisplayModel -> String
+currentPath model =
+    case model of
+        Initializing path ->
+            path
+
+        Displaying resource ->
+            Data.path (current resource)
+
+        LoadingOther resource ->
+            Data.path (current resource)
 
 
 fetchResource : Maybe EntryType -> String -> Cmd Msg
@@ -185,7 +224,7 @@ fetchResource typeHint path =
 view : Model -> Html Msg
 view model =
     H.div []
-        [ viewNav model.path
+        [ viewNav (currentPath model.content)
         , viewProgressIndicator (isLoading model.content)
         , viewErrorMessage model.errorMessage
         , viewContent model.content
@@ -233,14 +272,14 @@ viewContent : DisplayModel -> Html Msg
 viewContent content =
     Html.Keyed.node "div" [] <|
         case content of
-            Initializing ->
+            Initializing _ ->
                 []
 
             Displaying resource ->
-                viewResource resource
+                viewResource (current resource)
 
             LoadingOther resource ->
-                viewResource resource
+                viewResource (current resource)
 
 
 viewResource : Resource -> List ( String, Html Msg )

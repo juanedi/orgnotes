@@ -34,6 +34,17 @@ type EntryType
     | DirectoryEntry
 
 
+path : Resource -> String
+path resource =
+    -- TODO: maybe move "path" to top level field and nest the rest?
+    case resource of
+        NoteResource note ->
+            note.path
+
+        DirectoryResource directory ->
+            directory.path
+
+
 resourceDecoder : Decode.Decoder Resource
 resourceDecoder =
     Decode.andThen
