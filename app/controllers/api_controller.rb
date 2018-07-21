@@ -25,12 +25,7 @@ class ApiController < ApplicationController
   end
 
   def file_path
-    if params[:path]
-      path = "/#{params[:path]}"
-    else
-      # TODO: may need to fix this for dropbox driver
-      path = "/"
-    end
+    path = "/#{params[:path]}"
 
     if params[:format]
       path = "#{path}.#{params[:format]}"
