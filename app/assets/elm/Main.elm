@@ -7,6 +7,7 @@ import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
+import Json.Decode as Decode
 import Navigation
 import Port exposing (Request(..))
 
@@ -34,10 +35,10 @@ type Msg
     | NavigateBack
     | DismissError
     | PermanentDismissError
-    | RemoteFetchDone Resource
+    | RemoteFetchDone Decode.Value
     | RemoteFetchFailed
     | LocalFetchFailed
-    | LocalFetchDone Resource
+    | LocalFetchDone Decode.Value
 
 
 main : Program Never Model Msg
@@ -101,32 +102,50 @@ update msg model =
         PermanentDismissError ->
             ( { model | errorState = PermanentDismiss }, Cmd.none )
 
-        RemoteFetchDone resource ->
-            ( { model | content = Content.updateFromServer resource model.content }
-            , Cmd.batch (Port.send (Store resource) :: renderingEffects resource)
-            )
+        RemoteFetchDone value ->
+            case decodeResource value of
+                Ok resource ->
+                    ( { model | content = Content.updateFromServer resource model.content }
+                    , Cmd.batch (Port.send (Store value) :: renderingEffects resource)
+                    )
 
-        LocalFetchDone resource ->
-            ( { model | content = Content.updateFromCache resource model.content }
-            , Cmd.batch (renderingEffects resource)
-            )
+                Err _ ->
+                    ( userError model, Cmd.none )
+
+        LocalFetchDone value ->
+            case decodeResource value of
+                Ok resource ->
+                    ( { model | content = Content.updateFromCache resource model.content }
+                    , Cmd.batch (renderingEffects resource)
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
 
         RemoteFetchFailed ->
-            ( { model
-                | content = Content.cancelLoading model.content
-                , errorState =
-                    case model.errorState of
-                        PermanentDismiss ->
-                            PermanentDismiss
-
-                        _ ->
-                            OnError "Couldn't fetch the entry"
-              }
-            , Cmd.none
-            )
+            ( userError model, Cmd.none )
 
         LocalFetchFailed ->
             ( model, Cmd.none )
+
+
+decodeResource : Decode.Value -> Result String Resource
+decodeResource =
+    Decode.decodeValue Data.resourceDecoder
+
+
+userError : Model -> Model
+userError model =
+    { model
+        | content = Content.cancelLoading model.content
+        , errorState =
+            case model.errorState of
+                PermanentDismiss ->
+                    PermanentDismiss
+
+                _ ->
+                    OnError "Couldn't fetch the entry"
+    }
 
 
 renderingEffects : Resource -> List (Cmd Msg)

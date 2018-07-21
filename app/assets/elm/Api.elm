@@ -2,9 +2,10 @@ module Api exposing (fetchResource)
 
 import Data exposing (EntryType(..), Resource(..))
 import Http
+import Json.Decode as Decode
 
 
-fetchResource : (Http.Error -> msg) -> (Resource -> msg) -> Maybe EntryType -> String -> Cmd msg
+fetchResource : (Http.Error -> msg) -> (Decode.Value -> msg) -> Maybe EntryType -> String -> Cmd msg
 fetchResource errorTagger okTagger typeHint path =
     let
         headers =
@@ -23,7 +24,7 @@ fetchResource errorTagger okTagger typeHint path =
         , headers = headers
         , url = "/api/dropbox" ++ path
         , body = Http.emptyBody
-        , expect = Http.expectJson Data.resourceDecoder
+        , expect = Http.expectJson Decode.value
         , timeout = Nothing
         , withCredentials = False
         }

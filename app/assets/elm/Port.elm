@@ -1,6 +1,5 @@
 port module Port exposing (Request(..), Response(..), responses, send)
 
-import Api
 import Data exposing (Resource(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -14,12 +13,12 @@ port fromJs : (Encode.Value -> msg) -> Sub msg
 
 type Request
     = Render String
-    | Store Resource
+    | Store Decode.Value
     | Fetch String
 
 
 type Response
-    = FetchDone Resource
+    = FetchDone Decode.Value
     | FetchFailed
 
 
@@ -30,15 +29,7 @@ send =
 
 responses : (Response -> msg) -> Sub msg
 responses toMsg =
-    fromJs
-        (\value ->
-            case Decode.decodeValue Data.resourceDecoder value of
-                Ok resource ->
-                    toMsg (FetchDone resource)
-
-                Err _ ->
-                    toMsg FetchFailed
-        )
+    fromJs (toMsg << FetchDone)
 
 
 encodeRequest : Request -> Encode.Value
@@ -53,7 +44,7 @@ encodeRequest request =
         Store resource ->
             Encode.object
                 [ ( "type", Encode.string "store" )
-                , ( "resource", Data.encodeResource resource )
+                , ( "resource", resource )
                 ]
 
         Fetch path ->
