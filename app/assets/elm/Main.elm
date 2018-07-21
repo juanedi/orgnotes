@@ -9,11 +9,8 @@ import Html.Events as HE
 import Html.Keyed
 import Json.Decode as Decode
 import Navigation
+import Path exposing (Path)
 import Port exposing (Request(..))
-
-
-type alias Path =
-    String
 
 
 type alias Model =
@@ -31,8 +28,7 @@ type ErrorState
 
 type Msg
     = UrlChange Path
-    | Navigate Entry
-    | NavigateBack
+    | Navigate (Maybe EntryType) Path
     | DismissError
     | PermanentDismissError
     | RemoteFetchDone Decode.Value
@@ -44,7 +40,7 @@ type Msg
 main : Program Never Model Msg
 main =
     Navigation.program
-        (.pathname >> UrlChange)
+        (.pathname >> Path.fromString >> UrlChange)
         { init = init
         , update = update
         , view = view
@@ -67,11 +63,15 @@ subscriptions _ =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    ( { content = Content.init location.pathname
+    let
+        path =
+            Path.fromString location.pathname
+    in
+    ( { content = Content.init path
       , typeHint = Nothing
       , errorState = Clear
       }
-    , fetchResource Nothing location.pathname
+    , fetchResource Nothing path
     )
 
 
@@ -86,14 +86,9 @@ update msg model =
             , fetchResource model.typeHint path
             )
 
-        Navigate metadata ->
-            ( { model | typeHint = Just metadata.type_ }
-            , Navigation.newUrl metadata.pathLower
-            )
-
-        NavigateBack ->
-            ( { model | typeHint = Just DirectoryEntry }
-            , Navigation.back 1
+        Navigate typeHint path ->
+            ( { model | typeHint = typeHint }
+            , Navigation.newUrl (Path.toString path)
             )
 
         DismissError ->
@@ -183,12 +178,16 @@ viewNav : Path -> Html Msg
 viewNav path =
     let
         navButton =
-            case path of
-                "/" ->
+            case Path.parent path of
+                Nothing ->
                     H.i [ HA.class "material-icons" ] [ H.text "folder" ]
 
-                _ ->
-                    H.i [ HE.onClick NavigateBack, HA.class "material-icons" ] [ H.text "arrow_back" ]
+                Just parentPath ->
+                    H.i
+                        [ HE.onClick (Navigate (Just DirectoryEntry) parentPath)
+                        , HA.class "material-icons"
+                        ]
+                        [ H.text "arrow_back" ]
     in
     H.nav
         [ HA.class "blue-grey" ]
@@ -199,7 +198,7 @@ viewNav path =
                 [ navButton ]
             , H.span
                 [ HA.class "nav-path" ]
-                [ H.text path ]
+                [ H.text (Path.toString path) ]
             ]
         ]
 
@@ -285,7 +284,7 @@ viewEntry : Entry -> Html Msg
 viewEntry entry =
     H.a
         [ HA.class "collection-item"
-        , HE.onClick (Navigate entry)
+        , HE.onClick (Navigate (Just entry.type_) (Path.fromString entry.pathLower))
         ]
         [ H.i [ HA.class "material-icons" ]
             [ H.text <|

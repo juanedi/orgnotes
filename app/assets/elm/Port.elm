@@ -1,8 +1,8 @@
 port module Port exposing (Request(..), Response(..), responses, send)
 
-import Data exposing (Resource(..))
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Path exposing (Path)
 
 
 port toJs : Encode.Value -> Cmd msg
@@ -14,7 +14,7 @@ port fromJs : (Encode.Value -> msg) -> Sub msg
 type Request
     = Render String
     | Store Decode.Value
-    | Fetch String
+    | Fetch Path
 
 
 type Response
@@ -50,5 +50,5 @@ encodeRequest request =
         Fetch path ->
             Encode.object
                 [ ( "type", Encode.string "fetch" )
-                , ( "path", Encode.string path )
+                , ( "path", Path.encode path )
                 ]

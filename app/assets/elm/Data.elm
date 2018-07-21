@@ -1,7 +1,7 @@
 module Data exposing (..)
 
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
-import Json.Encode as Encode
+import Path exposing (Path)
 
 
 type Resource
@@ -10,13 +10,13 @@ type Resource
 
 
 type alias Note =
-    { path : String
+    { path : Path
     , content : String
     }
 
 
 type alias Directory =
-    { path : String
+    { path : Path
     , entries : List Entry
     }
 
@@ -34,7 +34,7 @@ type EntryType
     | DirectoryEntry
 
 
-path : Resource -> String
+path : Resource -> Path
 path resource =
     -- TODO: maybe move "path" to top level field and nest the rest?
     case resource of
@@ -66,7 +66,7 @@ noteDecoder : Decode.Decoder Resource
 noteDecoder =
     Decode.map NoteResource <|
         Decode.map2 Note
-            (field "path" string)
+            (field "path" Path.decode)
             (field "content" string)
 
 
@@ -74,7 +74,7 @@ directoryDecoder : Decode.Decoder Resource
 directoryDecoder =
     Decode.map DirectoryResource
         (Decode.map2 Directory
-            (field "path" Decode.string)
+            (field "path" Path.decode)
             (field "entries" (Decode.list entryDecoder))
         )
 

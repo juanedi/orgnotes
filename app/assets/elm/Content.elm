@@ -12,10 +12,7 @@ module Content
         )
 
 import Data exposing (Entry, EntryType(..), Resource(..))
-
-
-type alias Path =
-    String
+import Path exposing (Path)
 
 
 type Content
