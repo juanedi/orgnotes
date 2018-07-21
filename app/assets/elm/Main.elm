@@ -183,9 +183,11 @@ viewNav path =
                     H.i [ HA.class "material-icons" ] [ H.text "folder" ]
 
                 Just parentPath ->
-                    spaLink
-                        (Path.toString parentPath)
-                        (Navigate (Just DirectoryEntry) parentPath)
+                    H.a
+                        (spaLink
+                            (Path.toString parentPath)
+                            (Navigate (Just DirectoryEntry) parentPath)
+                        )
                         [ H.i
                             [ HA.class "material-icons"
                             ]
@@ -286,9 +288,11 @@ viewDirectory directory =
 viewEntry : Entry -> Html Msg
 viewEntry entry =
     H.a
-        [ HA.class "collection-item"
-        , HE.onClick (Navigate (Just entry.type_) (Path.fromString entry.pathLower))
-        ]
+        (HA.class "collection-item"
+            :: spaLink
+                entry.pathLower
+                (Navigate (Just entry.type_) (Path.fromString entry.pathLower))
+        )
         [ H.i [ HA.class "material-icons" ]
             [ H.text <|
                 case entry.type_ of
@@ -302,7 +306,7 @@ viewEntry entry =
         ]
 
 
-spaLink : String -> msg -> List (Html msg) -> Html msg
+spaLink : String -> msg -> List (H.Attribute msg)
 spaLink href onClickMsg =
     let
         isSpecialClick : Decode.Decoder Bool
@@ -321,13 +325,12 @@ spaLink href onClickMsg =
                 True ->
                     Decode.fail "succeedIfFalse: condition was True"
     in
-    H.a
-        [ HE.onWithOptions "click"
-            { stopPropagation = False
-            , preventDefault = True
-            }
-            (isSpecialClick
-                |> Decode.andThen (succeedIfFalse onClickMsg)
-            )
-        , HA.href href
-        ]
+    [ HE.onWithOptions "click"
+        { stopPropagation = False
+        , preventDefault = True
+        }
+        (isSpecialClick
+            |> Decode.andThen (succeedIfFalse onClickMsg)
+        )
+    , HA.href href
+    ]
