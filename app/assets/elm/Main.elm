@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Api
+import Content exposing (Content)
 import Data exposing (Entry, EntryType(..), Resource(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
@@ -15,7 +16,7 @@ type alias Path =
 
 
 type alias Model =
-    { content : DisplayModel
+    { content : Content
     , typeHint : Maybe EntryType
     , errorState : ErrorState
     }
@@ -25,17 +26,6 @@ type ErrorState
     = Clear
     | OnError String
     | PermanentDismiss
-
-
-type DisplayModel
-    = Initializing Path
-    | Displaying (Cacheable Resource)
-    | LoadingOther Path (Cacheable Resource)
-
-
-type Cacheable r
-    = Cached r
-    | Fetched r
 
 
 type Msg
@@ -76,7 +66,7 @@ subscriptions _ =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    ( { content = Initializing location.pathname
+    ( { content = Content.init location.pathname
       , typeHint = Nothing
       , errorState = Clear
       }
@@ -90,7 +80,7 @@ update msg model =
         UrlChange path ->
             ( { model
                 | typeHint = Nothing
-                , content = setLoading path model.content
+                , content = Content.setLoading path model.content
               }
             , fetchResource model.typeHint path
             )
@@ -112,18 +102,18 @@ update msg model =
             ( { model | errorState = PermanentDismiss }, Cmd.none )
 
         RemoteFetchDone resource ->
-            ( { model | content = updateFromServer resource model.content }
+            ( { model | content = Content.updateFromServer resource model.content }
             , Cmd.batch (Port.send (Store resource) :: renderingEffects resource)
             )
 
         LocalFetchDone resource ->
-            ( { model | content = updateFromCache resource model.content }
+            ( { model | content = Content.updateFromCache resource model.content }
             , Cmd.batch (renderingEffects resource)
             )
 
         RemoteFetchFailed ->
             ( { model
-                | content = cancelLoading model.content
+                | content = Content.cancelLoading model.content
                 , errorState =
                     case model.errorState of
                         PermanentDismiss ->
@@ -139,16 +129,6 @@ update msg model =
             ( model, Cmd.none )
 
 
-current : Cacheable a -> a
-current cacheable =
-    case cacheable of
-        Cached a ->
-            a
-
-        Fetched a ->
-            a
-
-
 renderingEffects : Resource -> List (Cmd Msg)
 renderingEffects resource =
     case resource of
@@ -157,111 +137,6 @@ renderingEffects resource =
 
         Data.DirectoryResource _ ->
             []
-
-
-setLoading : Path -> DisplayModel -> DisplayModel
-setLoading newPath model =
-    case model of
-        Initializing _ ->
-            model
-
-        Displaying resource ->
-            LoadingOther newPath resource
-
-        LoadingOther _ resource ->
-            model
-
-
-cancelLoading : DisplayModel -> DisplayModel
-cancelLoading model =
-    case model of
-        Initializing _ ->
-            model
-
-        Displaying resource ->
-            model
-
-        LoadingOther _ resource ->
-            Displaying resource
-
-
-isLoading : DisplayModel -> Bool
-isLoading model =
-    case model of
-        Initializing _ ->
-            True
-
-        Displaying resource ->
-            False
-
-        LoadingOther _ resource ->
-            True
-
-
-currentPath : DisplayModel -> Path
-currentPath model =
-    case model of
-        Initializing path ->
-            path
-
-        Displaying resource ->
-            Data.path (current resource)
-
-        LoadingOther _ resource ->
-            Data.path (current resource)
-
-
-updateFromServer : Resource -> DisplayModel -> DisplayModel
-updateFromServer resource model =
-    case model of
-        Initializing _ ->
-            Displaying (Fetched resource)
-
-        LoadingOther loadingPath _ ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if loadingPath == Data.path resource then
-                Displaying (Fetched resource)
-            else
-                model
-
-        Displaying (Cached cachedResource) ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if Data.path resource == Data.path cachedResource then
-                Displaying (Fetched resource)
-            else
-                model
-
-        Displaying (Fetched _) ->
-            -- NOTE: should not happen
-            model
-
-
-updateFromCache : Resource -> DisplayModel -> DisplayModel
-updateFromCache resource model =
-    case model of
-        Initializing _ ->
-            Displaying (Cached resource)
-
-        LoadingOther loadingPath _ ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if loadingPath == Data.path resource then
-                Displaying (Cached resource)
-            else
-                model
-
-        Displaying (Fetched _) ->
-            -- cache took longer than the real thing. the world is a strange place.
-            model
-
-        Displaying (Cached _) ->
-            -- NOTE: should not happen
-            model
 
 
 fetchResource : Maybe EntryType -> Path -> Cmd Msg
@@ -275,10 +150,13 @@ fetchResource typeHint path =
 view : Model -> Html Msg
 view model =
     H.div []
-        [ viewNav (currentPath model.content)
-        , viewProgressIndicator (isLoading model.content)
+        [ viewNav (Content.currentPath model.content)
+        , viewProgressIndicator (Content.isLoading model.content)
         , viewErrorMessage model.errorState
-        , viewContent model.content
+        , model.content
+            |> Content.current
+            |> Maybe.map viewResource
+            |> Maybe.withDefault (H.text "")
         ]
 
 
@@ -319,34 +197,21 @@ viewProgressIndicator loading =
             []
 
 
-viewContent : DisplayModel -> Html Msg
-viewContent content =
-    Html.Keyed.node "div" [] <|
-        case content of
-            Initializing _ ->
-                []
-
-            Displaying resource ->
-                viewResource (current resource)
-
-            LoadingOther _ resource ->
-                viewResource (current resource)
-
-
-viewResource : Resource -> List ( String, Html Msg )
+viewResource : Resource -> Html Msg
 viewResource resource =
-    case resource of
-        NoteResource note ->
-            [ ( "note-content" ++ toString note.path
-              , H.div [ HA.id "note-content" ] []
-              )
-            ]
+    Html.Keyed.node "div" [] <|
+        case resource of
+            NoteResource note ->
+                [ ( "note-content" ++ toString note.path
+                  , H.div [ HA.id "note-content" ] []
+                  )
+                ]
 
-        DirectoryResource directory ->
-            [ ( "directory-content"
-              , viewDirectory directory
-              )
-            ]
+            DirectoryResource directory ->
+                [ ( "directory-content"
+                  , viewDirectory directory
+                  )
+                ]
 
 
 viewErrorMessage : ErrorState -> Html Msg
