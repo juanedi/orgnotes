@@ -183,11 +183,14 @@ viewNav path =
                     H.i [ HA.class "material-icons" ] [ H.text "folder" ]
 
                 Just parentPath ->
-                    H.i
-                        [ HE.onClick (Navigate (Just DirectoryEntry) parentPath)
-                        , HA.class "material-icons"
+                    spaLink
+                        (Path.toString parentPath)
+                        (Navigate (Just DirectoryEntry) parentPath)
+                        [ H.i
+                            [ HA.class "material-icons"
+                            ]
+                            [ H.text "arrow_back" ]
                         ]
-                        [ H.text "arrow_back" ]
     in
     H.nav
         [ HA.class "blue-grey" ]
@@ -296,4 +299,35 @@ viewEntry entry =
                         "insert_drive_file"
             ]
         , H.text entry.name
+        ]
+
+
+spaLink : String -> msg -> List (Html msg) -> Html msg
+spaLink href onClickMsg =
+    let
+        isSpecialClick : Decode.Decoder Bool
+        isSpecialClick =
+            Decode.map2
+                (\isCtrl isMeta -> isCtrl || isMeta)
+                (Decode.field "ctrlKey" Decode.bool)
+                (Decode.field "metaKey" Decode.bool)
+
+        succeedIfFalse : a -> Bool -> Decode.Decoder a
+        succeedIfFalse msg preventDefault =
+            case preventDefault of
+                False ->
+                    Decode.succeed msg
+
+                True ->
+                    Decode.fail "succeedIfFalse: condition was True"
+    in
+    H.a
+        [ HE.onWithOptions "click"
+            { stopPropagation = False
+            , preventDefault = True
+            }
+            (isSpecialClick
+                |> Decode.andThen (succeedIfFalse onClickMsg)
+            )
+        , HA.href href
         ]
