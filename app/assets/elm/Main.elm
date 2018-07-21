@@ -112,61 +112,12 @@ update msg model =
             ( { model | errorState = PermanentDismiss }, Cmd.none )
 
         RemoteFetchDone resource ->
-            ( { model
-                | content =
-                    case model.content of
-                        Initializing _ ->
-                            Displaying (Fetched resource)
-
-                        LoadingOther loadingPath _ ->
-                            -- if network is slow, we may have navigated to
-                            -- another local resource before the server's
-                            -- response arrives
-                            if loadingPath == Data.path resource then
-                                Displaying (Fetched resource)
-                            else
-                                model.content
-
-                        Displaying (Cached cachedResource) ->
-                            -- if network is slow, we may have navigated to
-                            -- another local resource before the server's
-                            -- response arrives
-                            if Data.path resource == Data.path cachedResource then
-                                Displaying (Fetched resource)
-                            else
-                                model.content
-
-                        Displaying (Fetched _) ->
-                            -- NOTE: should not happen
-                            model.content
-              }
+            ( { model | content = updateFromServer resource model.content }
             , Cmd.batch (Port.send (Store resource) :: renderingEffects resource)
             )
 
         LocalFetchDone resource ->
-            ( { model
-                | content =
-                    case model.content of
-                        Initializing _ ->
-                            Displaying (Cached resource)
-
-                        LoadingOther loadingPath _ ->
-                            -- if network is slow, we may have navigated to
-                            -- another local resource before the server's
-                            -- response arrives
-                            if loadingPath == Data.path resource then
-                                Displaying (Cached resource)
-                            else
-                                model.content
-
-                        Displaying (Fetched _) ->
-                            -- cache took longer than the real thing. the world is a strange place.
-                            model.content
-
-                        Displaying (Cached _) ->
-                            -- NOTE: should not happen
-                            model.content
-              }
+            ( { model | content = updateFromCache resource model.content }
             , Cmd.batch (renderingEffects resource)
             )
 
@@ -258,6 +209,59 @@ currentPath model =
 
         LoadingOther _ resource ->
             Data.path (current resource)
+
+
+updateFromServer : Resource -> DisplayModel -> DisplayModel
+updateFromServer resource model =
+    case model of
+        Initializing _ ->
+            Displaying (Fetched resource)
+
+        LoadingOther loadingPath _ ->
+            -- if network is slow, we may have navigated to
+            -- another local resource before the server's
+            -- response arrives
+            if loadingPath == Data.path resource then
+                Displaying (Fetched resource)
+            else
+                model
+
+        Displaying (Cached cachedResource) ->
+            -- if network is slow, we may have navigated to
+            -- another local resource before the server's
+            -- response arrives
+            if Data.path resource == Data.path cachedResource then
+                Displaying (Fetched resource)
+            else
+                model
+
+        Displaying (Fetched _) ->
+            -- NOTE: should not happen
+            model
+
+
+updateFromCache : Resource -> DisplayModel -> DisplayModel
+updateFromCache resource model =
+    case model of
+        Initializing _ ->
+            Displaying (Cached resource)
+
+        LoadingOther loadingPath _ ->
+            -- if network is slow, we may have navigated to
+            -- another local resource before the server's
+            -- response arrives
+            if loadingPath == Data.path resource then
+                Displaying (Cached resource)
+            else
+                model
+
+        Displaying (Fetched _) ->
+            -- cache took longer than the real thing. the world is a strange place.
+            model
+
+        Displaying (Cached _) ->
+            -- NOTE: should not happen
+            model
 
 
 fetchResource : Maybe EntryType -> Path -> Cmd Msg
