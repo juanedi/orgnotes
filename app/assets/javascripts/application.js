@@ -12,5 +12,7 @@
 //
 //= require rails-ujs
 //= require org
-//= require formatting
+//= require render
+//= require db
+//= require port_server
 //= require Main

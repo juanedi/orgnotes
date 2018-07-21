@@ -1,11 +1,15 @@
-port module Main exposing (..)
+module Main exposing (..)
 
-import Api exposing (Entry)
+import Api
+import Content exposing (Content)
+import Data exposing (Entry, EntryType(..), Resource(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
+import Json.Decode as Decode
 import Navigation
+import Port exposing (Request(..))
 
 
 type alias Path =
@@ -13,30 +17,28 @@ type alias Path =
 
 
 type alias Model =
-    { path : Path
-    , loading : Bool
-    , errorMessage : Maybe String
-    , content : DisplayModel
-    , typeHint : Maybe Api.ResourceType
+    { content : Content
+    , typeHint : Maybe EntryType
+    , errorState : ErrorState
     }
 
 
-type DisplayModel
-    = Initializing
-    | DirectoryContent (List Entry)
-    | FileContent String
+type ErrorState
+    = Clear
+    | OnError String
+    | PermanentDismiss
 
 
 type Msg
     = UrlChange Path
-    | Navigate Api.Entry
+    | Navigate Entry
     | NavigateBack
     | DismissError
-    | ResourceFetchSucceeded Path Api.Resource
-    | FetchFailed
-
-
-port renderNote : String -> Cmd msg
+    | PermanentDismissError
+    | RemoteFetchDone Decode.Value
+    | RemoteFetchFailed
+    | LocalFetchFailed
+    | LocalFetchDone Decode.Value
 
 
 main : Program Never Model Msg
@@ -46,17 +48,28 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \model -> Sub.none
+        , subscriptions = subscriptions
         }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Port.responses
+        (\response ->
+            case response of
+                Port.FetchDone resource ->
+                    LocalFetchDone resource
+
+                Port.FetchFailed ->
+                    LocalFetchFailed
+        )
 
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
-    ( { path = location.pathname
-      , loading = True
-      , errorMessage = Nothing
-      , content = Initializing
+    ( { content = Content.init location.pathname
       , typeHint = Nothing
+      , errorState = Clear
       }
     , fetchResource Nothing location.pathname
     )
@@ -67,9 +80,8 @@ update msg model =
     case msg of
         UrlChange path ->
             ( { model
-                | loading = True
-                , errorMessage = Nothing
-                , typeHint = Nothing
+                | typeHint = Nothing
+                , content = Content.setLoading path model.content
               }
             , fetchResource model.typeHint path
             )
@@ -80,52 +92,90 @@ update msg model =
             )
 
         NavigateBack ->
-            ( { model | typeHint = Just Api.DirectoryResource }
+            ( { model | typeHint = Just DirectoryEntry }
             , Navigation.back 1
             )
 
         DismissError ->
-            ( { model | errorMessage = Nothing }, Cmd.none )
+            ( { model | errorState = Clear }, Cmd.none )
 
-        ResourceFetchSucceeded path (Api.Note content) ->
-            ( { model
-                | path = path
-                , loading = False
-                , content = FileContent path
-              }
-            , renderNote content
-            )
+        PermanentDismissError ->
+            ( { model | errorState = PermanentDismiss }, Cmd.none )
 
-        ResourceFetchSucceeded path (Api.Directory entries) ->
-            ( { model
-                | path = path
-                , loading = False
-                , content = DirectoryContent entries
-              }
-            , Cmd.none
-            )
+        RemoteFetchDone value ->
+            case decodeResource value of
+                Ok resource ->
+                    ( { model | content = Content.updateFromServer resource model.content }
+                    , Cmd.batch (Port.send (Store value) :: renderingEffects resource)
+                    )
 
-        FetchFailed ->
-            ( { model
-                | loading = False
-                , errorMessage = Just "Couldn't fetch the entry"
-              }
-            , Cmd.none
-            )
+                Err _ ->
+                    ( userError model, Cmd.none )
+
+        LocalFetchDone value ->
+            case decodeResource value of
+                Ok resource ->
+                    ( { model | content = Content.updateFromCache resource model.content }
+                    , Cmd.batch (renderingEffects resource)
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
+        RemoteFetchFailed ->
+            ( userError model, Cmd.none )
+
+        LocalFetchFailed ->
+            ( model, Cmd.none )
 
 
-fetchResource : Maybe Api.ResourceType -> String -> Cmd Msg
+decodeResource : Decode.Value -> Result String Resource
+decodeResource =
+    Decode.decodeValue Data.resourceDecoder
+
+
+userError : Model -> Model
+userError model =
+    { model
+        | content = Content.cancelLoading model.content
+        , errorState =
+            case model.errorState of
+                PermanentDismiss ->
+                    PermanentDismiss
+
+                _ ->
+                    OnError "Couldn't fetch the entry"
+    }
+
+
+renderingEffects : Resource -> List (Cmd Msg)
+renderingEffects resource =
+    case resource of
+        Data.NoteResource note ->
+            [ Port.send (Render note.content) ]
+
+        Data.DirectoryResource _ ->
+            []
+
+
+fetchResource : Maybe EntryType -> Path -> Cmd Msg
 fetchResource typeHint path =
-    Api.fetchResource (always FetchFailed) (ResourceFetchSucceeded path) typeHint path
+    Cmd.batch
+        [ Api.fetchResource (always RemoteFetchFailed) RemoteFetchDone typeHint path
+        , Port.send (Fetch path)
+        ]
 
 
 view : Model -> Html Msg
 view model =
     H.div []
-        [ viewNav model.path
-        , viewProgressIndicator model.loading
-        , viewErrorMessage model.errorMessage
-        , viewContent model.content
+        [ viewNav (Content.currentPath model.content)
+        , viewProgressIndicator (Content.isLoading model.content)
+        , viewErrorMessage model.errorState
+        , model.content
+            |> Content.current
+            |> Maybe.map viewResource
+            |> Maybe.withDefault (H.text "")
         ]
 
 
@@ -166,53 +216,55 @@ viewProgressIndicator loading =
             []
 
 
-viewContent : DisplayModel -> Html Msg
-viewContent content =
+viewResource : Resource -> Html Msg
+viewResource resource =
     Html.Keyed.node "div" [] <|
-        case content of
-            Initializing ->
-                []
-
-            FileContent path ->
-                [ ( "note-content" ++ toString path
+        case resource of
+            NoteResource note ->
+                [ ( "note-content" ++ toString note.path
                   , H.div [ HA.id "note-content" ] []
                   )
                 ]
 
-            DirectoryContent entries ->
+            DirectoryResource directory ->
                 [ ( "directory-content"
-                  , viewDirectory entries
+                  , viewDirectory directory
                   )
                 ]
 
 
-viewErrorMessage : Maybe String -> Html Msg
-viewErrorMessage maybeError =
-    case maybeError of
-        Nothing ->
-            H.div [] []
-
-        Just msg ->
+viewErrorMessage : ErrorState -> Html Msg
+viewErrorMessage errorState =
+    case errorState of
+        OnError msg ->
             H.div
                 [ HA.id "error-message"
                 , HA.class "card blue-grey darken-1"
                 ]
                 [ H.div
                     [ HA.class "card-content white-text" ]
+                    -- TODO: if viewing a cached version, show a better error message
                     [ H.span [ HA.class "card-title" ] [ H.text msg ]
                     , H.p [] [ H.text "Sorry about that. Maybe reloading helps :-(" ]
                     ]
                 , H.div
                     [ HA.class "card-action" ]
                     [ H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
-                    , H.a [ HE.onClick DismissError ] [ H.text "Dismiss" ]
+                    , H.a [ HE.onClick DismissError ] [ H.text "Hide" ]
+                    , H.a [ HE.onClick PermanentDismissError ] [ H.text "Dismiss permanently" ]
                     ]
                 ]
 
+        Clear ->
+            H.div [] []
 
-viewDirectory : List Entry -> Html Msg
-viewDirectory entries =
-    if List.isEmpty entries then
+        PermanentDismiss ->
+            H.div [] []
+
+
+viewDirectory : Data.Directory -> Html Msg
+viewDirectory directory =
+    if List.isEmpty directory.entries then
         H.div
             [ HA.class "empty-directory valign-wrapper center-align" ]
             [ H.div
@@ -226,7 +278,7 @@ viewDirectory entries =
             [ HA.id "directory-entries"
             , HA.class "collection"
             ]
-            (List.map viewEntry entries)
+            (List.map viewEntry directory.entries)
 
 
 viewEntry : Entry -> Html Msg
@@ -238,10 +290,10 @@ viewEntry entry =
         [ H.i [ HA.class "material-icons" ]
             [ H.text <|
                 case entry.type_ of
-                    Api.DirectoryResource ->
+                    DirectoryEntry ->
                         "folder"
 
-                    Api.NoteResource ->
+                    NoteEntry ->
                         "insert_drive_file"
             ]
         , H.text entry.name
