@@ -16,3 +16,4 @@
 //= require db
 //= require port_server
 //= require Main
+//= require serviceworker-companion
