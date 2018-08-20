@@ -20,6 +20,8 @@
           return DB.fetch(request, db);
         }).then(function(note) {
           send(note);
+        }).catch(function(err) {
+          send({error: err})
         });
         break;
       default:

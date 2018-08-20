@@ -48,7 +48,12 @@
       var getRequest = store.get(request.path);
 
       getRequest.onsuccess = function(e) {
-        resolve(e.target.result);
+        var result = e.target.result;
+        if (result) {
+          resolve(result);
+        } else {
+          reject("cache miss")
+        }
       };
 
       getRequest.onerror = function(error) {
