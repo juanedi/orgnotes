@@ -1,11 +1,11 @@
 module Content
     exposing
-        ( Content
-        , cancelLoading
-        , current
+        ( Content(..)
+        , cacheFailed
         , currentPath
         , init
         , isLoading
+        , serverFailed
         , setLoading
         , updateFromCache
         , updateFromServer
@@ -16,144 +16,188 @@ import Path exposing (Path)
 
 
 type Content
-    = Initializing Path
-    | Displaying (Cacheable Resource)
-    | LoadingOther Path (Cacheable Resource)
+    = Loading
+        { pathToLoad : Path
+        , displayedResource : Maybe Resource
+        , status : LoadingStatus
+        }
+    | CachedVersion
+        { resource : Resource
+        , waitingForServer : Bool
+        }
+    | ServerVersion Resource
+    | Failure Path
 
 
-type Cacheable r
-    = Cached r
-    | Fetched r
+type LoadingStatus
+    = WaitingForBoth
+    | ServerFailed
+    | CacheFailed
 
 
 init : Path -> Content
 init path =
-    Initializing path
-
-
-setLoading : Path -> Content -> Content
-setLoading newPath model =
-    case model of
-        Initializing _ ->
-            model
-
-        Displaying resource ->
-            LoadingOther newPath resource
-
-        LoadingOther _ resource ->
-            model
-
-
-cancelLoading : Content -> Content
-cancelLoading model =
-    case model of
-        Initializing _ ->
-            model
-
-        Displaying resource ->
-            model
-
-        LoadingOther _ resource ->
-            Displaying resource
-
-
-isLoading : Content -> Bool
-isLoading model =
-    case model of
-        Initializing _ ->
-            True
-
-        Displaying resource ->
-            False
-
-        LoadingOther _ resource ->
-            True
+    Loading
+        { pathToLoad = path
+        , displayedResource = Nothing
+        , status = WaitingForBoth
+        }
 
 
 currentPath : Content -> Path
-currentPath model =
-    case model of
-        Initializing path ->
+currentPath content =
+    case content of
+        Loading { pathToLoad } ->
+            pathToLoad
+
+        CachedVersion { resource } ->
+            Data.path resource
+
+        ServerVersion resource ->
+            Data.path resource
+
+        Failure path ->
             path
 
-        Displaying resource ->
-            Data.path (fromCacheable resource)
 
-        LoadingOther _ resource ->
-            Data.path (fromCacheable resource)
+isLoading : Content -> Bool
+isLoading content =
+    case content of
+        Loading _ ->
+            True
+
+        CachedVersion _ ->
+            False
+
+        ServerVersion _ ->
+            False
+
+        Failure _ ->
+            False
 
 
-updateFromServer : Resource -> Content -> Content
-updateFromServer resource model =
-    case model of
-        Initializing _ ->
-            Displaying (Fetched resource)
+setLoading : Path -> Content -> Content
+setLoading newPath content =
+    case content of
+        Loading _ ->
+            content
 
-        LoadingOther loadingPath _ ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if loadingPath == Data.path resource then
-                Displaying (Fetched resource)
-            else
-                model
+        CachedVersion { resource } ->
+            Loading
+                { pathToLoad = newPath
+                , displayedResource = Just resource
+                , status = WaitingForBoth
+                }
 
-        Displaying (Cached cachedResource) ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if Data.path resource == Data.path cachedResource then
-                Displaying (Fetched resource)
-            else
-                model
+        ServerVersion resource ->
+            Loading
+                { pathToLoad = newPath
+                , displayedResource = Just resource
+                , status = WaitingForBoth
+                }
 
-        Displaying (Fetched _) ->
-            -- NOTE: should not happen
-            model
+        Failure _ ->
+            Loading
+                { pathToLoad = newPath
+                , displayedResource = Nothing
+                , status = WaitingForBoth
+                }
 
 
 updateFromCache : Resource -> Content -> Content
-updateFromCache resource model =
-    case model of
-        Initializing _ ->
-            Displaying (Cached resource)
+updateFromCache resource content =
+    if Data.path resource /= currentPath content then
+        content
+    else
+        case content of
+            Loading loading ->
+                -- if network is slow, we may have navigated to
+                -- another local resource before the server's
+                -- response arrives
+                CachedVersion
+                    { resource = resource
+                    , waitingForServer = loading.status /= ServerFailed
+                    }
 
-        LoadingOther loadingPath _ ->
-            -- if network is slow, we may have navigated to
-            -- another local resource before the server's
-            -- response arrives
-            if loadingPath == Data.path resource then
-                Displaying (Cached resource)
-            else
-                model
+            CachedVersion { resource } ->
+                -- should not happen
+                content
 
-        Displaying (Fetched _) ->
-            -- cache took longer than the real thing. the world is a strange place.
-            model
+            ServerVersion resource ->
+                -- cache took longer than the real thing. the world is a strange place.
+                content
 
-        Displaying (Cached _) ->
-            -- NOTE: should not happen
-            model
+            Failure path ->
+                CachedVersion { resource = resource, waitingForServer = True }
 
 
-current : Content -> Maybe Resource
-current content =
+updateFromServer : Resource -> Content -> Content
+updateFromServer resource content =
+    -- if network is slow, we may have navigated to
+    -- another local resource before the server's
+    -- response arrives
+    if Data.path resource /= currentPath content then
+        content
+    else
+        case content of
+            Loading { pathToLoad } ->
+                ServerVersion resource
+
+            CachedVersion cached ->
+                ServerVersion resource
+
+            ServerVersion resource ->
+                -- should not happen
+                content
+
+            Failure path ->
+                ServerVersion resource
+
+
+serverFailed : Content -> Content
+serverFailed content =
     case content of
-        Initializing _ ->
-            Nothing
+        Loading loading ->
+            case loading.status of
+                CacheFailed ->
+                    Failure loading.pathToLoad
 
-        Displaying cacheable ->
-            Just (fromCacheable cacheable)
+                _ ->
+                    -- no server version, but the cache might still succeed
+                    Loading { loading | status = ServerFailed }
 
-        LoadingOther _ cacheable ->
-            Just (fromCacheable cacheable)
+        CachedVersion cached ->
+            CachedVersion { cached | waitingForServer = False }
+
+        ServerVersion resource ->
+            -- should not happen
+            content
+
+        Failure path ->
+            -- should not happen
+            content
 
 
-fromCacheable : Cacheable r -> r
-fromCacheable cacheable =
-    case cacheable of
-        Cached r ->
-            r
+cacheFailed : Content -> Content
+cacheFailed content =
+    case content of
+        Loading loading ->
+            case loading.status of
+                ServerFailed ->
+                    Failure loading.pathToLoad
 
-        Fetched r ->
-            r
+                _ ->
+                    -- no cached version, but the server might still succeed
+                    Loading { loading | status = CacheFailed }
+
+        CachedVersion cached ->
+            -- should not happen
+            content
+
+        ServerVersion resource ->
+            -- we don't care
+            content
+
+        Failure path ->
+            -- should not happen
+            content

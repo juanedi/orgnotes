@@ -14,6 +14,7 @@ nav {
     }
 
     .nav-path {
+      flex-grow: 1;
       text-overflow: ellipsis;
       white-space: nowrap;
       overflow-x: hidden;
@@ -74,7 +75,7 @@ nav {
 }
 
 
-.empty-directory {
+.no-content {
   height: 65vh;
 
   > div {

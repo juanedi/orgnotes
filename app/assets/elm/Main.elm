@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Api
-import Content exposing (Content)
+import Content exposing (Content(..))
 import Data exposing (Entry, EntryType(..), Resource(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
@@ -16,25 +16,30 @@ import Port exposing (Request(..))
 type alias Model =
     { content : Content
     , typeHint : Maybe EntryType
-    , errorState : ErrorState
+    , showOfflineWarning : Bool
     }
 
 
 type ErrorState
-    = Clear
-    | OnError String
-    | PermanentDismiss
+    = AllGood
+    | MayBeOldContent
+    | Fatal
+
+
+type NoContentSign
+    = EmptyDirectory
+    | SomethingWentWrong
 
 
 type Msg
     = UrlChange Path
     | Navigate (Maybe EntryType) Path
-    | DismissError
-    | PermanentDismissError
     | RemoteFetchDone Decode.Value
     | RemoteFetchFailed
     | LocalFetchFailed
     | LocalFetchDone Decode.Value
+    | ShowWarning
+    | HideWarning
 
 
 main : Program Never Model Msg
@@ -69,7 +74,7 @@ init location =
     in
     ( { content = Content.init path
       , typeHint = Nothing
-      , errorState = Clear
+      , showOfflineWarning = False
       }
     , fetchResource Nothing path
     )
@@ -91,12 +96,6 @@ update msg model =
             , Navigation.newUrl (Path.toString path)
             )
 
-        DismissError ->
-            ( { model | errorState = Clear }, Cmd.none )
-
-        PermanentDismissError ->
-            ( { model | errorState = PermanentDismiss }, Cmd.none )
-
         RemoteFetchDone value ->
             case decodeResource value of
                 Ok resource ->
@@ -105,7 +104,7 @@ update msg model =
                     )
 
                 Err _ ->
-                    ( userError model, Cmd.none )
+                    ( { model | content = Content.serverFailed model.content }, Cmd.none )
 
         LocalFetchDone value ->
             case decodeResource value of
@@ -115,32 +114,24 @@ update msg model =
                     )
 
                 Err _ ->
-                    ( model, Cmd.none )
+                    ( { model | content = Content.cacheFailed model.content }, Cmd.none )
 
         RemoteFetchFailed ->
-            ( userError model, Cmd.none )
+            ( { model | content = Content.serverFailed model.content }, Cmd.none )
 
         LocalFetchFailed ->
-            ( model, Cmd.none )
+            ( { model | content = Content.cacheFailed model.content }, Cmd.none )
+
+        ShowWarning ->
+            ( { model | showOfflineWarning = True }, Cmd.none )
+
+        HideWarning ->
+            ( { model | showOfflineWarning = False }, Cmd.none )
 
 
 decodeResource : Decode.Value -> Result String Resource
 decodeResource =
     Decode.decodeValue Data.resourceDecoder
-
-
-userError : Model -> Model
-userError model =
-    { model
-        | content = Content.cancelLoading model.content
-        , errorState =
-            case model.errorState of
-                PermanentDismiss ->
-                    PermanentDismiss
-
-                _ ->
-                    OnError "Couldn't fetch the entry"
-    }
 
 
 renderingEffects : Resource -> List (Cmd Msg)
@@ -164,23 +155,26 @@ fetchResource typeHint path =
 view : Model -> Html Msg
 view model =
     H.div []
-        [ viewNav (Content.currentPath model.content)
+        [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
-        , viewErrorMessage model.errorState
-        , model.content
-            |> Content.current
-            |> Maybe.map viewResource
-            |> Maybe.withDefault (H.text "")
+        , if model.showOfflineWarning then
+            viewOfflineWarning
+          else
+            H.text ""
+        , viewContent model.content
         ]
 
 
-viewNav : Path -> Html Msg
-viewNav path =
+viewNav : Content -> Html Msg
+viewNav content =
     let
+        path =
+            Content.currentPath content
+
         navButton =
             case Path.parent path of
                 Nothing ->
-                    H.i [ HA.class "material-icons" ] [ H.text "folder" ]
+                    icon "folder"
 
                 Just parentPath ->
                     H.a
@@ -188,11 +182,7 @@ viewNav path =
                             (Path.toString parentPath)
                             (Navigate (Just DirectoryEntry) parentPath)
                         )
-                        [ H.i
-                            [ HA.class "material-icons"
-                            ]
-                            [ H.text "arrow_back" ]
-                        ]
+                        [ icon "arrow_back" ]
     in
     H.nav
         [ HA.class "blue-grey" ]
@@ -204,8 +194,84 @@ viewNav path =
             , H.span
                 [ HA.class "nav-path" ]
                 [ H.text (Path.toString path) ]
+            , case error content of
+                AllGood ->
+                    H.text ""
+
+                MayBeOldContent ->
+                    H.button
+                        [ HE.onClick ShowWarning ]
+                        [ icon "warning" ]
+
+                Fatal ->
+                    H.span [] [ icon "error" ]
             ]
         ]
+
+
+viewContent : Content -> Html Msg
+viewContent content =
+    case content of
+        Loading { displayedResource } ->
+            case displayedResource of
+                Nothing ->
+                    H.text ""
+
+                Just resource ->
+                    viewResource resource
+
+        CachedVersion { resource } ->
+            viewResource resource
+
+        ServerVersion resource ->
+            viewResource resource
+
+        Failure _ ->
+            viewNoContent SomethingWentWrong
+
+
+viewNoContent : NoContentSign -> Html Msg
+viewNoContent sign =
+    let
+        ( message, ascii ) =
+            case sign of
+                EmptyDirectory ->
+                    ( "Nothing here!"
+                    , "¯\\_(ツ)_/¯"
+                    )
+
+                SomethingWentWrong ->
+                    ( "Something went wrong!"
+                    , "༼ つ ◕_◕ ༽つ"
+                    )
+    in
+    H.div
+        [ HA.class "no-content valign-wrapper center-align" ]
+        [ H.div
+            [ HA.class "center-align" ]
+            [ H.p [ HA.class "shrug" ] [ H.text ascii ]
+            , H.p [] [ H.text message ]
+            ]
+        ]
+
+
+error : Content -> ErrorState
+error content =
+    case content of
+        Loading _ ->
+            AllGood
+
+        CachedVersion { waitingForServer } ->
+            if waitingForServer then
+                AllGood
+            else
+                MayBeOldContent
+
+        ServerVersion resource ->
+            AllGood
+
+        Failure _ ->
+            Fatal
 
 
 viewProgressIndicator : Bool -> Html Msg
@@ -237,46 +303,29 @@ viewResource resource =
                 ]
 
 
-viewErrorMessage : ErrorState -> Html Msg
-viewErrorMessage errorState =
-    case errorState of
-        OnError msg ->
-            H.div
-                [ HA.id "error-message"
-                , HA.class "card blue-grey darken-1"
-                ]
-                [ H.div
-                    [ HA.class "card-content white-text" ]
-                    -- TODO: if viewing a cached version, show a better error message
-                    [ H.span [ HA.class "card-title" ] [ H.text msg ]
-                    , H.p [] [ H.text "Sorry about that. Maybe reloading helps :-(" ]
-                    ]
-                , H.div
-                    [ HA.class "card-action" ]
-                    [ H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
-                    , H.a [ HE.onClick DismissError ] [ H.text "Hide" ]
-                    , H.a [ HE.onClick PermanentDismissError ] [ H.text "Dismiss permanently" ]
-                    ]
-                ]
-
-        Clear ->
-            H.div [] []
-
-        PermanentDismiss ->
-            H.div [] []
+viewOfflineWarning : Html Msg
+viewOfflineWarning =
+    H.div
+        [ HA.id "error-message"
+        , HA.class "card blue-grey darken-1"
+        ]
+        [ H.div
+            [ HA.class "card-content white-text" ]
+            [ H.span [ HA.class "card-title" ] [ H.text "Offline mode" ]
+            , H.p [] [ H.text "You're looking at a cached version, which may be old. Maybe reloading helps :-(" ]
+            ]
+        , H.div
+            [ HA.class "card-action" ]
+            [ H.a [ HE.onClick HideWarning ] [ H.text "Hide" ]
+            , H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
+            ]
+        ]
 
 
 viewDirectory : Data.Directory -> Html Msg
 viewDirectory directory =
     if List.isEmpty directory.entries then
-        H.div
-            [ HA.class "empty-directory valign-wrapper center-align" ]
-            [ H.div
-                [ HA.class "center-align" ]
-                [ H.p [ HA.class "shrug" ] [ H.text "¯\\_(ツ)_/¯" ]
-                , H.p [] [ H.text "Nothing here!" ]
-                ]
-            ]
+        viewNoContent EmptyDirectory
     else
         H.div
             [ HA.id "directory-entries"
@@ -293,15 +342,12 @@ viewEntry entry =
                 entry.pathLower
                 (Navigate (Just entry.type_) (Path.fromString entry.pathLower))
         )
-        [ H.i [ HA.class "material-icons" ]
-            [ H.text <|
-                case entry.type_ of
-                    DirectoryEntry ->
-                        "folder"
+        [ case entry.type_ of
+            DirectoryEntry ->
+                icon "folder"
 
-                    NoteEntry ->
-                        "insert_drive_file"
-            ]
+            NoteEntry ->
+                icon "insert_drive_file"
         , H.text entry.name
         ]
 
@@ -334,3 +380,10 @@ spaLink href onClickMsg =
         )
     , HA.href href
     ]
+
+
+icon : String -> Html msg
+icon iconId =
+    H.i [ HA.class "material-icons" ]
+        [ H.text iconId
+        ]
