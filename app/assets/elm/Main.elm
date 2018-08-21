@@ -192,11 +192,22 @@ viewNav content =
 
 viewContent : Content -> Html Msg
 viewContent content =
-    case Content.current content of
-        Just resource ->
+    case content of
+        Loading { displayedResource } ->
+            case displayedResource of
+                Nothing ->
+                    H.text ""
+
+                Just resource ->
+                    viewResource resource
+
+        CachedVersion { resource } ->
             viewResource resource
 
-        Nothing ->
+        ServerVersion resource ->
+            viewResource resource
+
+        Failure _ ->
             viewShrug "Something went wrong!"
 
 

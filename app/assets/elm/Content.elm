@@ -2,7 +2,6 @@ module Content
     exposing
         ( Content(..)
         , cacheFailed
-        , current
         , currentPath
         , init
         , isLoading
@@ -43,22 +42,6 @@ init path =
         , displayedResource = Nothing
         , status = WaitingForBoth
         }
-
-
-current : Content -> Maybe Resource
-current content =
-    case content of
-        Loading { displayedResource } ->
-            displayedResource
-
-        CachedVersion { resource } ->
-            Just resource
-
-        ServerVersion resource ->
-            Just resource
-
-        Failure _ ->
-            Nothing
 
 
 currentPath : Content -> Path
