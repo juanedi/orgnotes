@@ -25,6 +25,11 @@ type ErrorState
     | Fatal
 
 
+type NoContentSign
+    = EmptyDirectory
+    | SomethingWentWrong
+
+
 type Msg
     = UrlChange Path
     | Navigate (Maybe EntryType) Path
@@ -208,16 +213,29 @@ viewContent content =
             viewResource resource
 
         Failure _ ->
-            viewShrug "Something went wrong!"
+            viewNoContent SomethingWentWrong
 
 
-viewShrug : String -> Html Msg
-viewShrug message =
+viewNoContent : NoContentSign -> Html Msg
+viewNoContent sign =
+    let
+        ( message, ascii ) =
+            case sign of
+                EmptyDirectory ->
+                    ( "Nothing here!"
+                    , "¯\\_(ツ)_/¯"
+                    )
+
+                SomethingWentWrong ->
+                    ( "Something went wrong!"
+                    , "༼ つ ◕_◕ ༽つ"
+                    )
+    in
     H.div
         [ HA.class "no-content valign-wrapper center-align" ]
         [ H.div
             [ HA.class "center-align" ]
-            [ H.p [ HA.class "shrug" ] [ H.text "¯\\_(ツ)_/¯" ]
+            [ H.p [ HA.class "shrug" ] [ H.text ascii ]
             , H.p [] [ H.text message ]
             ]
         ]
@@ -302,7 +320,7 @@ viewResource resource =
 viewDirectory : Data.Directory -> Html Msg
 viewDirectory directory =
     if List.isEmpty directory.entries then
-        viewShrug "Nothing here!"
+        viewNoContent EmptyDirectory
     else
         H.div
             [ HA.id "directory-entries"
