@@ -16,6 +16,7 @@ import Port exposing (Request(..))
 type alias Model =
     { content : Content
     , typeHint : Maybe EntryType
+    , showOfflineWarning : Bool
     }
 
 
@@ -37,6 +38,8 @@ type Msg
     | RemoteFetchFailed
     | LocalFetchFailed
     | LocalFetchDone Decode.Value
+    | ShowWarning
+    | HideWarning
 
 
 main : Program Never Model Msg
@@ -71,6 +74,7 @@ init location =
     in
     ( { content = Content.init path
       , typeHint = Nothing
+      , showOfflineWarning = False
       }
     , fetchResource Nothing path
     )
@@ -118,6 +122,12 @@ update msg model =
         LocalFetchFailed ->
             ( { model | content = Content.cacheFailed model.content }, Cmd.none )
 
+        ShowWarning ->
+            ( { model | showOfflineWarning = True }, Cmd.none )
+
+        HideWarning ->
+            ( { model | showOfflineWarning = False }, Cmd.none )
+
 
 decodeResource : Decode.Value -> Result String Resource
 decodeResource =
@@ -147,8 +157,10 @@ view model =
     H.div []
         [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
-
-        -- , viewErrorMessage model.errorState
+        , if model.showOfflineWarning then
+            viewOfflineWarning
+          else
+            H.text ""
         , viewContent model.content
         ]
 
@@ -187,7 +199,9 @@ viewNav content =
                     H.text ""
 
                 MayBeOldContent ->
-                    H.span [] [ icon "warning" ]
+                    H.button
+                        [ HE.onClick ShowWarning ]
+                        [ icon "warning" ]
 
                 Fatal ->
                     H.span [] [ icon "error" ]
@@ -289,32 +303,23 @@ viewResource resource =
                 ]
 
 
-
--- viewErrorMessage : ErrorState -> Html Msg
--- viewErrorMessage errorState =
---     case errorState of
---         OnError msg ->
---             H.div
---                 [ HA.id "error-message"
---                 , HA.class "card blue-grey darken-1"
---                 ]
---                 [ H.div
---                     [ HA.class "card-content white-text" ]
---                     -- TODO: if viewing a cached version, show a better error message
---                     [ H.span [ HA.class "card-title" ] [ H.text msg ]
---                     , H.p [] [ H.text "Sorry about that. Maybe reloading helps :-(" ]
---                     ]
---                 , H.div
---                     [ HA.class "card-action" ]
---                     [ H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
---                     , H.a [ HE.onClick DismissError ] [ H.text "Hide" ]
---                     , H.a [ HE.onClick PermanentDismissError ] [ H.text "Dismiss permanently" ]
---                     ]
---                 ]
---         Clear ->
---             H.div [] []
---         PermanentDismiss ->
---             H.div [] []
+viewOfflineWarning : Html Msg
+viewOfflineWarning =
+    H.div
+        [ HA.id "error-message"
+        , HA.class "card blue-grey darken-1"
+        ]
+        [ H.div
+            [ HA.class "card-content white-text" ]
+            [ H.span [ HA.class "card-title" ] [ H.text "Offline mode" ]
+            , H.p [] [ H.text "You're looking at a cached version, which may be old. Maybe reloading helps :-(" ]
+            ]
+        , H.div
+            [ HA.class "card-action" ]
+            [ H.a [ HE.onClick HideWarning ] [ H.text "Hide" ]
+            , H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
+            ]
+        ]
 
 
 viewDirectory : Data.Directory -> Html Msg
