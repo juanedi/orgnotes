@@ -174,6 +174,7 @@ view model =
     H.div []
         [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
+        , viewContent model.content
         , case model.popup of
             NoPopup ->
                 H.text ""
@@ -183,7 +184,6 @@ view model =
 
             OfflinePopup ->
                 viewPopup offlinePopup
-        , viewContent model.content
         ]
 
 
