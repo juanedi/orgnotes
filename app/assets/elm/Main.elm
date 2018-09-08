@@ -16,7 +16,7 @@ import Port exposing (Request(..))
 type alias Model =
     { content : Content
     , typeHint : Maybe EntryType
-    , showOfflineWarning : Bool
+    , popup : PopupState
     }
 
 
@@ -31,6 +31,19 @@ type NoContentSign
     | SomethingWentWrong
 
 
+type PopupState
+    = NoPopup
+    | InfoPopup
+    | OfflinePopup
+
+
+type alias Popup msg =
+    { title : String
+    , content : List (Html msg)
+    , actions : List (Html msg)
+    }
+
+
 type Msg
     = UrlChange Path
     | Navigate (Maybe EntryType) Path
@@ -38,8 +51,9 @@ type Msg
     | RemoteFetchFailed
     | LocalFetchFailed
     | LocalFetchDone Decode.Value
-    | ShowWarning
-    | HideWarning
+    | ShowInfo
+    | ShowOfflineWarning
+    | HidePopup
 
 
 main : Program Never Model Msg
@@ -74,7 +88,7 @@ init location =
     in
     ( { content = Content.init path
       , typeHint = Nothing
-      , showOfflineWarning = False
+      , popup = NoPopup
       }
     , fetchResource Nothing path
     )
@@ -122,11 +136,14 @@ update msg model =
         LocalFetchFailed ->
             ( { model | content = Content.cacheFailed model.content }, Cmd.none )
 
-        ShowWarning ->
-            ( { model | showOfflineWarning = True }, Cmd.none )
+        ShowInfo ->
+            ( { model | popup = InfoPopup }, Cmd.none )
 
-        HideWarning ->
-            ( { model | showOfflineWarning = False }, Cmd.none )
+        ShowOfflineWarning ->
+            ( { model | popup = OfflinePopup }, Cmd.none )
+
+        HidePopup ->
+            ( { model | popup = NoPopup }, Cmd.none )
 
 
 decodeResource : Decode.Value -> Result String Resource
@@ -157,11 +174,33 @@ view model =
     H.div []
         [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
-        , if model.showOfflineWarning then
-            viewOfflineWarning
-          else
-            H.text ""
+        , case model.popup of
+            NoPopup ->
+                H.text ""
+
+            InfoPopup ->
+                viewPopup infoPopup
+
+            OfflinePopup ->
+                viewPopup offlinePopup
         , viewContent model.content
+        ]
+
+
+viewPopup : Popup Msg -> Html Msg
+viewPopup config =
+    H.div
+        [ HA.id "app-popup"
+        , HA.class "card blue-grey darken-1"
+        ]
+        [ H.div
+            [ HA.class "card-content white-text" ]
+            [ H.span [ HA.class "card-title" ] [ H.text config.title ]
+            , H.div [] config.content
+            ]
+        , H.div
+            [ HA.class "card-action" ]
+            config.actions
         ]
 
 
@@ -196,11 +235,13 @@ viewNav content =
                 [ H.text (Path.toString path) ]
             , case error content of
                 AllGood ->
-                    H.text ""
+                    H.button
+                        [ HE.onClick ShowInfo ]
+                        [ icon "info" ]
 
                 MayBeOldContent ->
                     H.button
-                        [ HE.onClick ShowWarning ]
+                        [ HE.onClick ShowOfflineWarning ]
                         [ icon "warning" ]
 
                 Fatal ->
@@ -303,23 +344,41 @@ viewResource resource =
                 ]
 
 
-viewOfflineWarning : Html Msg
-viewOfflineWarning =
-    H.div
-        [ HA.id "error-message"
-        , HA.class "card blue-grey darken-1"
-        ]
-        [ H.div
-            [ HA.class "card-content white-text" ]
-            [ H.span [ HA.class "card-title" ] [ H.text "Offline mode" ]
-            , H.p [] [ H.text "You're looking at a cached version, which may be old. Maybe reloading helps :-(" ]
+infoPopup : Popup Msg
+infoPopup =
+    { title = "OrgNotes"
+    , content =
+        [ H.p []
+            [ H.text "Developed by Juan Edi. Source code available on "
+            , H.a [ HA.href "http://github.com/juanedi/orgnotes", HA.title "Github" ] [ H.text "Github" ]
+            , H.text "."
             ]
-        , H.div
-            [ HA.class "card-action" ]
-            [ H.a [ HE.onClick HideWarning ] [ H.text "Hide" ]
-            , H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
+        , H.br [] []
+        , H.p []
+            [ H.text "Icons made by "
+            , H.a [ HA.href "https://www.flaticon.com/authors/smashicons", HA.title "Smashicons" ] [ H.text "Smashicons" ]
+            , H.text " from "
+            , H.a [ HA.href "https://www.flaticon.com/", HA.title "Flaticon" ] [ H.text "www.flaticon.com" ]
+            , H.text " is licensed by "
+            , H.a [ HA.href "http://creativecommons.org/licenses/by/3.0/", HA.title "Creative Commons BY 3.0" ] [ H.text "CC 3.0 BY" ]
+            , H.text "."
             ]
         ]
+    , actions =
+        [ H.a [ HE.onClick HidePopup ] [ H.text "Hide" ]
+        ]
+    }
+
+
+offlinePopup : Popup Msg
+offlinePopup =
+    { title = "Offline mode"
+    , content = [ H.p [] [ H.text "You're looking at a cached version, which may be old. Maybe reloading helps :-(" ] ]
+    , actions =
+        [ H.a [ HE.onClick HidePopup ] [ H.text "Hide" ]
+        , H.a [ HA.attribute "onClick" "event.preventDefault(); window.location.reload(true)" ] [ H.text "Reload" ]
+        ]
+    }
 
 
 viewDirectory : Data.Directory -> Html Msg
