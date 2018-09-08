@@ -2,6 +2,7 @@
   "name": "orgnotes",
   "private": true,
   "dependencies": {
+    "elm": "^0.18.0",
     "org": "~0.2.0"
   }
 }
