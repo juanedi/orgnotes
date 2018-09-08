@@ -1,4 +1,6 @@
 Rails.application.configure do
+  config.serviceworker.icon_sizes = ["16", "24", "32", "64", "128", "256", "512"]
+
   config.serviceworker.routes.draw do
     # map to assets implicitly
     match "/serviceworker.js"
