@@ -13,9 +13,11 @@ self.addEventListener('install', function(event) {
         '<%= asset_path "application.js" %>',
         '<%= asset_path "application.css" %>',
 
-        // these work because cloudfare sends the appropriate cors headers
         'https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/fonts/roboto/Roboto-Regular.woff',
-        'https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/fonts/roboto/Roboto-Regular.woff2'
+        'https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/fonts/roboto/Roboto-Regular.woff2',
+        'https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css',
+        'https://fonts.googleapis.com/css?family=Noto+Serif',
+        'https://fonts.googleapis.com/icon?family=Material+Icons'
       ])}))}
 );
 
