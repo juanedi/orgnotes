@@ -20,6 +20,13 @@ nav {
       overflow-x: hidden;
     }
   }
+
+  button {
+    // reset some user agent styles that make it look weird on mobile chrome
+    background-color: unset !important;
+    border: unset !important;
+    outline: unset !important;
+  }
 }
 
 #app-progress {
