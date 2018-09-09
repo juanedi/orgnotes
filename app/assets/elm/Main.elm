@@ -386,11 +386,15 @@ viewDirectory directory =
     if List.isEmpty directory.entries then
         viewNoContent EmptyDirectory
     else
-        H.div
+        -- NOTE: Html.Keyed is here to prevent hover style bugs on mobile
+        Html.Keyed.node "div"
             [ HA.id "directory-entries"
             , HA.class "collection"
             ]
-            (List.map viewEntry directory.entries)
+            (List.map
+                (\entry -> ( entry.name, viewEntry entry ))
+                directory.entries
+            )
 
 
 viewEntry : Entry -> Html Msg
