@@ -1,4 +1,4 @@
-module Main exposing (..)
+module Main exposing (ErrorState(..), Model, Msg(..), NoContentSign(..), Popup, PopupState(..), decodeResource, error, fetchResource, icon, infoPopup, init, main, offlinePopup, renderingEffects, spaLink, subscriptions, update, view, viewContent, viewDirectory, viewEntry, viewNav, viewNoContent, viewPopup, viewProgressIndicator, viewResource)
 
 import Api
 import Content exposing (Content(..))
@@ -305,6 +305,7 @@ error content =
         CachedVersion { waitingForServer } ->
             if waitingForServer then
                 AllGood
+
             else
                 MayBeOldContent
 
@@ -321,6 +322,7 @@ viewProgressIndicator loading =
         H.div
             [ HA.id "app-progress", HA.class "progress" ]
             [ H.div [ HA.class "indeterminate" ] [] ]
+
     else
         H.div
             [ HA.id "app-progress" ]
@@ -385,6 +387,7 @@ viewDirectory : Data.Directory -> Html Msg
 viewDirectory directory =
     if List.isEmpty directory.entries then
         viewNoContent EmptyDirectory
+
     else
         -- NOTE: Html.Keyed is here to prevent hover style bugs on mobile
         Html.Keyed.node "div"

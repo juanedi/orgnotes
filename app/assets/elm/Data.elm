@@ -1,4 +1,4 @@
-module Data exposing (..)
+module Data exposing (Directory, Entry, EntryType(..), Note, Resource(..), directoryDecoder, entryDecoder, entryTypeDecoder, noteDecoder, path, resourceDecoder)
 
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
 import Path exposing (Path)

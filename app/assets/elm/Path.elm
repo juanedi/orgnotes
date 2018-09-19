@@ -1,12 +1,11 @@
-module Path
-    exposing
-        ( Path
-        , decode
-        , encode
-        , fromString
-        , parent
-        , toString
-        )
+module Path exposing
+    ( Path
+    , decode
+    , encode
+    , fromString
+    , parent
+    , toString
+    )
 
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode

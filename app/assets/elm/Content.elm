@@ -1,15 +1,14 @@
-module Content
-    exposing
-        ( Content(..)
-        , cacheFailed
-        , currentPath
-        , init
-        , isLoading
-        , serverFailed
-        , setLoading
-        , updateFromCache
-        , updateFromServer
-        )
+module Content exposing
+    ( Content(..)
+    , cacheFailed
+    , currentPath
+    , init
+    , isLoading
+    , serverFailed
+    , setLoading
+    , updateFromCache
+    , updateFromServer
+    )
 
 import Data exposing (Entry, EntryType(..), Resource(..))
 import Path exposing (Path)
@@ -108,6 +107,7 @@ updateFromCache : Resource -> Content -> Content
 updateFromCache resource content =
     if Data.path resource /= currentPath content then
         content
+
     else
         case content of
             Loading loading ->
@@ -138,6 +138,7 @@ updateFromServer resource content =
     -- response arrives
     if Data.path resource /= currentPath content then
         content
+
     else
         case content of
             Loading { pathToLoad } ->
