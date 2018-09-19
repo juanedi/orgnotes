@@ -21,3 +21,6 @@
 /elm-stuff
 
 .env
+
+# Logs results of `find_executable` when compiling elm files
+mkmf.log
