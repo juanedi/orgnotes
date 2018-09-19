@@ -1,7 +1,7 @@
 (function() {
   document.addEventListener("DOMContentLoaded", function() {
     var node = document.getElementById('elm');
-    var app = Elm.Main.fullscreen();
+    var app = Elm.Main.init();
     var dbSetup = DB.initialize();
     var send = app.ports.fromJs.send;
 

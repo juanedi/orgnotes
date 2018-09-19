@@ -119,11 +119,11 @@ updateFromCache resource content =
                     , waitingForServer = loading.status /= ServerFailed
                     }
 
-            CachedVersion { resource } ->
+            CachedVersion _ ->
                 -- should not happen
                 content
 
-            ServerVersion resource ->
+            ServerVersion _ ->
                 -- cache took longer than the real thing. the world is a strange place.
                 content
 
@@ -147,7 +147,7 @@ updateFromServer resource content =
             CachedVersion cached ->
                 ServerVersion resource
 
-            ServerVersion resource ->
+            ServerVersion _ ->
                 -- should not happen
                 content
 

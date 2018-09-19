@@ -3,12 +3,14 @@ module Path exposing
     , decode
     , encode
     , fromString
+    , fromUrl
     , parent
     , toString
     )
 
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import Url exposing (Url)
 
 
 type Path
@@ -17,6 +19,11 @@ type Path
 
 type alias Component =
     String
+
+
+fromUrl : Url -> Path
+fromUrl =
+    .path >> fromString
 
 
 fromString : String -> Path
