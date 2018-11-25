@@ -11,6 +11,7 @@ import Html.Events as HE
 import Html.Keyed
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Org
 import Path exposing (Path)
 import Port exposing (Request(..))
 import Url exposing (Url)
@@ -343,10 +344,7 @@ viewResource resource =
         case resource of
             NoteResource note ->
                 [ ( "note-content" ++ Path.toString note.path
-                  , H.node "org-note"
-                        [ HA.attribute "value" note.content
-                        ]
-                        []
+                  , Org.view [] note.content
                   )
                 ]
 

@@ -13,6 +13,7 @@ module Data exposing
     )
 
 import Json.Decode as Decode exposing (dict, field, float, int, list, nullable, string)
+import Org exposing (Org)
 import Path exposing (Path)
 
 
@@ -23,7 +24,7 @@ type Resource
 
 type alias Note =
     { path : Path
-    , content : String
+    , content : Org
     }
 
 
@@ -79,7 +80,7 @@ noteDecoder =
     Decode.map NoteResource <|
         Decode.map2 Note
             (field "path" Path.decode)
-            (field "content" string)
+            (field "content" Org.decode)
 
 
 directoryDecoder : Decode.Decoder Resource
