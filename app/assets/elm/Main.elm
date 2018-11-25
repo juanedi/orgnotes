@@ -10,6 +10,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Path exposing (Path)
 import Port exposing (Request(..))
 import Url exposing (Url)
@@ -134,7 +135,7 @@ update msg model =
             case decodeResource value of
                 Ok resource ->
                     ( { model | content = Content.updateFromServer resource model.content }
-                    , Cmd.batch (Port.send (Store value) :: renderingEffects resource)
+                    , Port.send (Store value)
                     )
 
                 Err _ ->
@@ -143,9 +144,7 @@ update msg model =
         LocalFetchDone value ->
             case decodeResource value of
                 Ok resource ->
-                    ( { model | content = Content.updateFromCache resource model.content }
-                    , Cmd.batch (renderingEffects resource)
-                    )
+                    ( { model | content = Content.updateFromCache resource model.content }, Cmd.none )
 
                 Err _ ->
                     ( { model | content = Content.cacheFailed model.content }, Cmd.none )
@@ -169,16 +168,6 @@ update msg model =
 decodeResource : Decode.Value -> Result Decode.Error Resource
 decodeResource =
     Decode.decodeValue Data.resourceDecoder
-
-
-renderingEffects : Resource -> List (Cmd Msg)
-renderingEffects resource =
-    case resource of
-        Data.NoteResource note ->
-            [ Port.send (Render note.content) ]
-
-        Data.DirectoryResource _ ->
-            []
 
 
 fetchResource : Maybe EntryType -> Path -> Cmd Msg
@@ -354,7 +343,10 @@ viewResource resource =
         case resource of
             NoteResource note ->
                 [ ( "note-content" ++ Path.toString note.path
-                  , H.div [ HA.id "note-content" ] []
+                  , H.node "org-note"
+                        [ HA.attribute "value" note.content
+                        ]
+                        []
                   )
                 ]
 
