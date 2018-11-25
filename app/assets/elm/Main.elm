@@ -1,6 +1,8 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Api
+import Browser exposing (Document, UrlRequest(..))
+import Browser.Navigation as Nav exposing (Key)
 import Content exposing (Content(..))
 import Data exposing (Entry, EntryType(..), Resource(..))
 import Html as H exposing (Html)
@@ -8,13 +10,14 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Json.Decode as Decode
-import Navigation
 import Path exposing (Path)
 import Port exposing (Request(..))
+import Url exposing (Url)
 
 
 type alias Model =
-    { content : Content
+    { key : Nav.Key
+    , content : Content
     , typeHint : Maybe EntryType
     , popup : PopupState
     }
@@ -45,8 +48,8 @@ type alias Popup msg =
 
 
 type Msg
-    = UrlChange Path
-    | Navigate (Maybe EntryType) Path
+    = ClickedLink UrlRequest
+    | UrlChange Url
     | RemoteFetchDone Decode.Value
     | RemoteFetchFailed
     | LocalFetchFailed
@@ -56,14 +59,19 @@ type Msg
     | HidePopup
 
 
-main : Program Never Model Msg
+type alias Flags =
+    ()
+
+
+main : Program Flags Model Msg
 main =
-    Navigation.program
-        (.pathname >> Path.fromString >> UrlChange)
+    Browser.application
         { init = init
-        , update = update
         , view = view
+        , update = update
         , subscriptions = subscriptions
+        , onUrlRequest = ClickedLink
+        , onUrlChange = UrlChange
         }
 
 
@@ -80,13 +88,14 @@ subscriptions _ =
         )
 
 
-init : Navigation.Location -> ( Model, Cmd Msg )
-init location =
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
     let
         path =
-            Path.fromString location.pathname
+            Path.fromUrl url
     in
-    ( { content = Content.init path
+    ( { key = key
+      , content = Content.init path
       , typeHint = Nothing
       , popup = NoPopup
       }
@@ -97,17 +106,28 @@ init location =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UrlChange path ->
+        ClickedLink urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    ( model
+                    , Nav.pushUrl model.key (Url.toString url)
+                    )
+
+                External url ->
+                    ( model
+                    , Nav.load url
+                    )
+
+        UrlChange url ->
+            let
+                path =
+                    Path.fromUrl url
+            in
             ( { model
                 | typeHint = Nothing
                 , content = Content.setLoading path model.content
               }
-            , fetchResource model.typeHint path
-            )
-
-        Navigate typeHint path ->
-            ( { model | typeHint = typeHint }
-            , Navigation.newUrl (Path.toString path)
+            , fetchResource Nothing path
             )
 
         RemoteFetchDone value ->
@@ -146,7 +166,7 @@ update msg model =
             ( { model | popup = NoPopup }, Cmd.none )
 
 
-decodeResource : Decode.Value -> Result String Resource
+decodeResource : Decode.Value -> Result Decode.Error Resource
 decodeResource =
     Decode.decodeValue Data.resourceDecoder
 
@@ -169,9 +189,10 @@ fetchResource typeHint path =
         ]
 
 
-view : Model -> Html Msg
+view : Model -> Document Msg
 view model =
-    H.div []
+    { title = "Orgnotes"
+    , body =
         [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
         , viewContent model.content
@@ -185,6 +206,7 @@ view model =
             OfflinePopup ->
                 viewPopup offlinePopup
         ]
+    }
 
 
 viewPopup : Popup Msg -> Html Msg
@@ -217,10 +239,7 @@ viewNav content =
 
                 Just parentPath ->
                     H.a
-                        (spaLink
-                            (Path.toString parentPath)
-                            (Navigate (Just DirectoryEntry) parentPath)
-                        )
+                        [ HA.href (Path.toString parentPath) ]
                         [ icon "arrow_back" ]
     in
     H.nav
@@ -305,6 +324,7 @@ error content =
         CachedVersion { waitingForServer } ->
             if waitingForServer then
                 AllGood
+
             else
                 MayBeOldContent
 
@@ -321,6 +341,7 @@ viewProgressIndicator loading =
         H.div
             [ HA.id "app-progress", HA.class "progress" ]
             [ H.div [ HA.class "indeterminate" ] [] ]
+
     else
         H.div
             [ HA.id "app-progress" ]
@@ -332,7 +353,7 @@ viewResource resource =
     Html.Keyed.node "div" [] <|
         case resource of
             NoteResource note ->
-                [ ( "note-content" ++ toString note.path
+                [ ( "note-content" ++ Path.toString note.path
                   , H.div [ HA.id "note-content" ] []
                   )
                 ]
@@ -385,6 +406,7 @@ viewDirectory : Data.Directory -> Html Msg
 viewDirectory directory =
     if List.isEmpty directory.entries then
         viewNoContent EmptyDirectory
+
     else
         -- NOTE: Html.Keyed is here to prevent hover style bugs on mobile
         Html.Keyed.node "div"
@@ -400,11 +422,9 @@ viewDirectory directory =
 viewEntry : Entry -> Html Msg
 viewEntry entry =
     H.a
-        (HA.class "collection-item"
-            :: spaLink
-                entry.pathLower
-                (Navigate (Just entry.type_) (Path.fromString entry.pathLower))
-        )
+        [ HA.class "collection-item"
+        , HA.href entry.pathLower
+        ]
         [ case entry.type_ of
             DirectoryEntry ->
                 icon "folder"
@@ -413,36 +433,6 @@ viewEntry entry =
                 icon "insert_drive_file"
         , H.text entry.name
         ]
-
-
-spaLink : String -> msg -> List (H.Attribute msg)
-spaLink href onClickMsg =
-    let
-        isSpecialClick : Decode.Decoder Bool
-        isSpecialClick =
-            Decode.map2
-                (\isCtrl isMeta -> isCtrl || isMeta)
-                (Decode.field "ctrlKey" Decode.bool)
-                (Decode.field "metaKey" Decode.bool)
-
-        succeedIfFalse : a -> Bool -> Decode.Decoder a
-        succeedIfFalse msg preventDefault =
-            case preventDefault of
-                False ->
-                    Decode.succeed msg
-
-                True ->
-                    Decode.fail "succeedIfFalse: condition was True"
-    in
-    [ HE.onWithOptions "click"
-        { stopPropagation = False
-        , preventDefault = True
-        }
-        (isSpecialClick
-            |> Decode.andThen (succeedIfFalse onClickMsg)
-        )
-    , HA.href href
-    ]
 
 
 icon : String -> Html msg

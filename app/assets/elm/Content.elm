@@ -1,15 +1,14 @@
-module Content
-    exposing
-        ( Content(..)
-        , cacheFailed
-        , currentPath
-        , init
-        , isLoading
-        , serverFailed
-        , setLoading
-        , updateFromCache
-        , updateFromServer
-        )
+module Content exposing
+    ( Content(..)
+    , cacheFailed
+    , currentPath
+    , init
+    , isLoading
+    , serverFailed
+    , setLoading
+    , updateFromCache
+    , updateFromServer
+    )
 
 import Data exposing (Entry, EntryType(..), Resource(..))
 import Path exposing (Path)
@@ -108,6 +107,7 @@ updateFromCache : Resource -> Content -> Content
 updateFromCache resource content =
     if Data.path resource /= currentPath content then
         content
+
     else
         case content of
             Loading loading ->
@@ -119,11 +119,11 @@ updateFromCache resource content =
                     , waitingForServer = loading.status /= ServerFailed
                     }
 
-            CachedVersion { resource } ->
+            CachedVersion _ ->
                 -- should not happen
                 content
 
-            ServerVersion resource ->
+            ServerVersion _ ->
                 -- cache took longer than the real thing. the world is a strange place.
                 content
 
@@ -138,6 +138,7 @@ updateFromServer resource content =
     -- response arrives
     if Data.path resource /= currentPath content then
         content
+
     else
         case content of
             Loading { pathToLoad } ->
@@ -146,7 +147,7 @@ updateFromServer resource content =
             CachedVersion cached ->
                 ServerVersion resource
 
-            ServerVersion resource ->
+            ServerVersion _ ->
                 -- should not happen
                 content
 

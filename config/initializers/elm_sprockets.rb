@@ -1,4 +1,5 @@
 # Revised version of a Sprockets 3.x processor for Elm.
+require "mkmf"
 require "open3"
 
 # Elm Sprockets integration
@@ -13,13 +14,12 @@ class ElmProcessor
     end
 
     def cmd
-      @_cmd ||= ENV.fetch("ELM_MAKE_PATH", "elm-make")
+      @_cmd = find_executable "elm"
     end
 
     def elm_version
       @_elm_version ||= begin
-        line = `#{cmd} --help`.lines.first.chomp
-        line.match(/\(Elm Platform (.+)\)/) { |m| m[1] }
+        `#{cmd} --version`.lines.first.chomp
       end
     end
 
@@ -41,12 +41,18 @@ class ElmProcessor
 
   def compile
     args = []
-    args << "--yes"
-    args << "--output" << output_file.to_s << filename
-    args << "--debug" if Rails.env.development?
+    args << "make"
+    # args << "--yes" # TODO: if we do need this, pipe stdin from `yes`
+    args << "--output" << output_file.to_s
+    if Rails.env.development?
+      args << "--debug"
+    else
+      args << "--optimize"
+    end
+    args << filename
 
     Open3.popen3(cmd, *args) do |_in, out, err, t|
-      compiler_out = out.read
+      _compiler_out = out.read
       compiler_err = err.read
       if t.value != 0
         raise CompileError, compiler_err
