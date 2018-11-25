@@ -44,11 +44,15 @@ class ElmProcessor
     args << "make"
     # args << "--yes" # TODO: if we do need this, pipe stdin from `yes`
     args << "--output" << output_file.to_s
-    args << "--debug" if Rails.env.development?
+    if Rails.env.development?
+      args << "--debug"
+    else
+      args << "--optimize"
+    end
     args << filename
 
     Open3.popen3(cmd, *args) do |_in, out, err, t|
-      compiler_out = out.read
+      _compiler_out = out.read
       compiler_err = err.read
       if t.value != 0
         raise CompileError, compiler_err
