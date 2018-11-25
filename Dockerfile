@@ -16,8 +16,8 @@ RUN wget https://nodejs.org/dist/v4.6.0/node-v4.6.0-linux-x64.tar.xz \
     && ln -s /opt/node-v4.6.0-linux-x64/bin/node /usr/local/bin/node \
     && ln -s /opt/node-v4.6.0-linux-x64/bin/npm /usr/local/bin/npm
 
-RUN npm install -g elm@0.18.0 \
-    && ln -s /opt/node-v4.6.0-linux-x64/lib/node_modules/elm/binwrappers/* /usr/local/bin/
+RUN npm install -g elm@0.19.0-bugfix2
+ENV PATH="/opt/node-v4.6.0-linux-x64/lib/node_modules/elm/bin:${PATH}"
 
 WORKDIR /usr/src/app
 
@@ -26,9 +26,6 @@ RUN bundle install
 
 COPY package.json ./
 RUN npm install
-
-COPY elm-package.json ./
-RUN elm package install --yes
 
 COPY . .
 
