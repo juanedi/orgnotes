@@ -25,7 +25,6 @@ class OrgNote extends HTMLElement {
 
   render() {
     var parser = new Org.Parser()
-    // var orgDocument = parser.parse(note, { toc: 0 })
     var orgDocument = parser.parse(this.value, { toc: 0 })
 
     var orgHTMLDocument = orgDocument.convert(Org.ConverterHTML, {
