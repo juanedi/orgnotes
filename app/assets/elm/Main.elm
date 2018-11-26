@@ -10,7 +10,6 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Html.Keyed
 import Json.Decode as Decode
-import Json.Encode as Encode
 import Org
 import Path exposing (Path)
 import Port exposing (Request(..))
