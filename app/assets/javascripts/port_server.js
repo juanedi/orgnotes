@@ -7,9 +7,6 @@
 
     app.ports.toJs.subscribe(function(request) {
       switch(request.type) {
-      case "render":
-        Render.render(request);
-        break;
       case "store":
         dbSetup.then(function(db) {
           DB.store(request, db);

@@ -12,8 +12,8 @@
 //
 //= require rails-ujs
 //= require org
-//= require render
 //= require db
 //= require port_server
 //= require Main
 //= require serviceworker-companion
+//= require orgnote_tag
