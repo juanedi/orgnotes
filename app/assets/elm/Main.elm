@@ -185,34 +185,9 @@ view model =
         [ viewNav model.content
         , viewProgressIndicator (Content.isLoading model.content)
         , viewContent model.content
-        , case model.popup of
-            NoPopup ->
-                H.text ""
-
-            InfoPopup ->
-                viewPopup infoPopup
-
-            OfflinePopup ->
-                viewPopup offlinePopup
+        , maybeViewPopup model.popup
         ]
     }
-
-
-viewPopup : Popup Msg -> Html Msg
-viewPopup config =
-    H.div
-        [ HA.id "app-popup"
-        , HA.class "card blue-grey darken-1"
-        ]
-        [ H.div
-            [ HA.class "card-content white-text" ]
-            [ H.span [ HA.class "card-title" ] [ H.text config.title ]
-            , H.div [] config.content
-            ]
-        , H.div
-            [ HA.class "card-action" ]
-            config.actions
-        ]
 
 
 viewNav : Content -> Html Msg
@@ -352,6 +327,36 @@ viewResource resource =
                   , viewDirectory directory
                   )
                 ]
+
+
+maybeViewPopup : PopupState -> Html Msg
+maybeViewPopup popup =
+    case popup of
+        NoPopup ->
+            H.text ""
+
+        InfoPopup ->
+            viewPopup infoPopup
+
+        OfflinePopup ->
+            viewPopup offlinePopup
+
+
+viewPopup : Popup Msg -> Html Msg
+viewPopup config =
+    H.div
+        [ HA.id "app-popup"
+        , HA.class "card blue-grey darken-1"
+        ]
+        [ H.div
+            [ HA.class "card-content white-text" ]
+            [ H.span [ HA.class "card-title" ] [ H.text config.title ]
+            , H.div [] config.content
+            ]
+        , H.div
+            [ HA.class "card-action" ]
+            config.actions
+        ]
 
 
 infoPopup : Popup Msg
